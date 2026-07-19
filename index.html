@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Route Tracker — Cung leo Việt Nam</title>
+<title>Porter — Cung leo Việt Nam</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -317,13 +317,101 @@
   .vn-island span{display:inline-block;transform:translate(-50%,-50%);text-align:center;white-space:nowrap;color:#A9CDD8;font:700 11px/1.3 "Segoe UI",sans-serif;letter-spacing:.4px;text-shadow:0 1px 3px #000,0 0 8px rgba(0,0,0,.95)}
   .vn-island span small{display:block;font-size:8.5px;font-weight:600;color:#7E97A3;letter-spacing:.3px}
 
+  /* ---------- tabbar dưới ---------- */
+  .tabbar{flex:none;display:flex;align-items:flex-end;justify-content:space-around;gap:2px;padding:8px 8px 18px;background:rgba(7,8,9,.97);border-top:1px solid var(--hairline);position:relative;z-index:15}
+  .tb{background:none;border:0;font-family:inherit;color:#6E7377;font-size:9.5px;font-weight:600;letter-spacing:.2px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;flex:1;padding:2px 0}
+  .tb svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .tb.on{color:var(--go)}
+  .tb:focus-visible,.tb-cam:focus-visible{outline:2px solid var(--go);outline-offset:2px;border-radius:10px}
+  .tb-cam{flex:none;width:54px;height:54px;margin:0 2px;border-radius:50%;background:var(--go);border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transform:translateY(-10px);box-shadow:0 5px 18px -4px rgba(201,226,101,.55)}
+  .tb-cam svg{width:25px;height:25px;stroke:#182200;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ---------- trang thử thách ---------- */
+  .tt-list{display:flex;flex-direction:column;gap:10px}
+  .tt-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+  .tt-card b{font-size:14.5px}
+  .tt-card.done{border-color:rgba(201,226,101,.45)}
+  .tt-card.done b::after{content:' ✓';color:var(--go)}
+  .tt-card small{display:block;color:var(--mute);font-size:11.5px;margin-top:3px;line-height:1.5}
+  .tt-bar{height:6px;border-radius:3px;background:#22262A;margin-top:11px;overflow:hidden}
+  .tt-bar i{display:block;height:100%;border-radius:3px;background:var(--go);transition:width .4s ease}
+  .tt-meta{display:flex;justify-content:space-between;font-size:10.5px;color:var(--mute);margin-top:6px;font-variant-numeric:tabular-nums}
+
+  /* ---------- trang huy chương ---------- */
+  .hh-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+  .hh-item{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:13px 6px 11px;text-align:center}
+  .hh-coin{width:56px;height:56px;margin:0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:23px;background:radial-gradient(circle at 32% 28%,#F4FFD6,#C9E265 55%,#77903B);box-shadow:0 3px 12px -3px rgba(201,226,101,.55)}
+  .hh-item b{display:block;font-size:11px;margin-top:8px;line-height:1.3}
+  .hh-item small{display:block;font-size:9.5px;color:var(--mute);margin-top:2px;font-variant-numeric:tabular-nums}
+  .hh-item.khoa .hh-coin{background:#1B1E21;box-shadow:none;border:1px dashed #33383D;font-size:17px;filter:grayscale(1);opacity:.75}
+  .hh-item.khoa b{color:#6E7377}
+
+  /* ---------- trang hồ sơ ---------- */
+  .hs-head{display:flex;align-items:center;gap:14px;padding:10px 2px 4px}
+  .hs-avatar{width:58px;height:58px;border-radius:50%;border:2px solid var(--go);background:#202612;color:var(--go);font-size:24px;font-weight:800;cursor:pointer;font-family:inherit;flex:none}
+  .hs-head .hs-ten{font-size:18px;font-weight:700}
+  .hs-head small{display:block;color:var(--mute);font-size:11px;margin-top:3px}
+  .stats.hs4{grid-template-columns:1fr 1fr;row-gap:18px;margin-top:0}
+  .hs-lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--mute);padding:6px 2px 0}
+  .hs-lichsu{display:flex;flex-direction:column;gap:8px}
+  .ls-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .ls-row b{font-size:13px}
+  .ls-row small{color:var(--mute);display:block;margin-top:2px;font-size:11px}
+  .ls-num{text-align:right;color:#C6CACD;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  /* ---------- overlay chúc mừng ---------- */
+  .done-hero{text-align:center;font-size:46px;padding:4px 0 0}
+  .done-title{text-align:center;font-size:20px;font-weight:800;margin-top:6px}
+  .done-sub{text-align:center;font-size:12px;color:var(--mute);margin-top:3px}
+  .done-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0 12px}
+  .done-stat{background:var(--panel);border-radius:14px;padding:13px 8px;text-align:center}
+  .done-stat b{display:block;font-size:19px;font-variant-numeric:tabular-nums}
+  .done-stat span{font-size:9px;letter-spacing:.6px;text-transform:uppercase;color:var(--mute)}
+  .done-medal{display:flex;align-items:center;gap:13px;background:rgba(201,226,101,.1);border:1px solid rgba(201,226,101,.35);border-radius:16px;padding:12px 14px;margin-bottom:12px}
+  .done-medal[hidden]{display:none}
+  .done-medal .hh-coin{width:46px;height:46px;font-size:19px;margin:0;flex:none}
+  .done-medal b{font-size:13.5px}
+  .done-medal small{display:block;color:#B7CF56;font-size:11px;margin-top:2px}
+  .done-actions{display:flex;flex-direction:column;gap:8px;padding-bottom:6px}
+
+  /* ---------- bảng tin cộng đồng ---------- */
+  .fd-list{display:flex;flex-direction:column;gap:12px}
+  .fd-card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:14px 16px 12px}
+  .fd-head{display:flex;gap:10px;align-items:center}
+  .fd-av{width:38px;height:38px;border-radius:50%;flex:none;color:#F6F4EF;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center}
+  .fd-who b{font-size:14px;display:block}
+  .fd-who small{color:var(--mute);font-size:11px;display:block;margin-top:1px}
+  .fd-hh{margin-left:auto;flex:none;font-size:10px;font-weight:700;background:rgba(201,226,101,.12);color:var(--go);padding:4px 9px;border-radius:999px;border:1px solid rgba(201,226,101,.3);white-space:nowrap}
+  .fd-diagram{margin-top:12px;background:#0B0D10;border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;padding:0;display:block;width:100%}
+  .fd-diagram:focus-visible{outline:2px solid var(--go);outline-offset:2px}
+  .fd-diagram svg{display:block;width:100%;height:auto}
+  .fd-anh{margin-top:10px}
+  .fd-anh img{width:100%;border-radius:14px;display:block}
+  .fd-stats{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap}
+  .fd-stats span{font-size:9.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--mute)}
+  .fd-stats b{display:block;font-size:13.5px;font-variant-numeric:tabular-nums;margin-top:1px}
+  .fd-act{display:flex;gap:16px;margin-top:12px;padding-top:10px;border-top:1px solid var(--hairline);align-items:center}
+  .fd-act button,.fd-act label{background:none;border:0;color:var(--mute);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;display:flex;gap:6px;align-items:center;padding:2px 0}
+  .fd-act .tim.on{color:#FF5C7A}
+  .fd-act button:focus-visible,.fd-act label:focus-visible{outline:2px solid var(--go);outline-offset:2px;border-radius:6px}
+  .fd-bl{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+  .fd-bl[hidden]{display:none}
+  .fd-bl .bl{font-size:12px;background:var(--panel);padding:8px 11px;border-radius:11px;line-height:1.45}
+  .fd-bl .bl b{margin-right:6px}
+  .fd-blinput{display:flex;gap:7px;margin-top:9px}
+  .fd-blinput input{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:12px;padding:9px 12px;border-radius:999px}
+  .fd-blinput input::placeholder{color:#5C6165}
+  .fd-blinput button{border:0;background:var(--go);color:#182200;border-radius:999px;padding:0 14px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+  .fd-empty{color:var(--mute);font-size:13px;text-align:center;padding:26px 12px;line-height:1.6;background:var(--card);border:1px dashed var(--line);border-radius:18px}
+
   /* ---------- iPhone thật: bỏ khung vẽ, tràn toàn màn hình ---------- */
   @media (max-width:500px){
     body{padding:0}
     .device{width:100%;max-width:none;height:100vh;height:100dvh;border-radius:0;padding:0;box-shadow:none}
     .di,.statusbar,.homebar{display:none}
     .screen-inner{border-radius:0}
-    .app{padding-top:calc(env(safe-area-inset-top,0px) + 10px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px)}
+    .app{padding-top:calc(env(safe-area-inset-top,0px) + 10px);padding-bottom:18px}
+    .tabbar{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 10px)}
   }
 
   @media (prefers-reduced-motion:reduce){
@@ -347,17 +435,26 @@
 
     <div class="app" id="app">
 
-      <!-- ================= TRANG HOME ================= -->
-      <section class="page active" data-page="home" aria-label="Danh sách cung đường">
+      <!-- ================= TRANG CHỦ — BẢNG TIN CỘNG ĐỒNG ================= -->
+      <section class="page active" data-page="home" aria-label="Bảng tin cộng đồng trekker">
         <header class="app-head">
           <div class="brand">
             <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 19 9 8l3.5 5 2-3 6.5 9ZM3 19h18"/><path d="M9 8 8 4"/></svg></span>
-            <div><div class="brand-name">Route Tracker</div><div class="brand-sub">Cung leo Việt Nam</div></div>
+            <div><div class="brand-name">Porter</div><div class="brand-sub">Cộng đồng trekker Việt Nam</div></div>
           </div>
           <button class="head-btn" id="adminBtn1" type="button" aria-label="Admin"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
         </header>
         <div class="home-intro">
-          <h1>Chọn cung đường</h1>
+          <h1>Bảng tin</h1>
+          <p>Cộng đồng chia sẻ hành trình &amp; khoảnh khắc trên núi</p>
+        </div>
+        <div class="fd-list" id="fdList"></div>
+      </section>
+
+      <!-- ================= TRANG LỘ TRÌNH (danh sách cung + sơ đồ 3D) ================= -->
+      <section class="page" data-page="lotrinh" aria-label="Danh sách cung đường">
+        <div class="home-intro">
+          <h1>Lộ Trình</h1>
           <p>18 cung với track GPX thật · 1 tuyến của riêng bạn</p>
         </div>
         <div class="home-list" id="homeList"></div>
@@ -454,7 +551,44 @@
         </div>
       </section>
 
+      <!-- ================= TRANG THỬ THÁCH + HUY CHƯƠNG ================= -->
+      <section class="page" data-page="thuthach" aria-label="Thử thách và huy chương">
+        <div class="home-intro">
+          <h1>Thử thách</h1>
+          <p>Hoàn thành để mở khóa huy hiệu</p>
+        </div>
+        <div class="tt-list" id="ttList"></div>
+        <div class="home-intro" style="padding-top:10px">
+          <h1 style="font-size:20px">Huy chương</h1>
+          <p id="hhSub">Bộ sưu tập đỉnh núi của bạn</p>
+        </div>
+        <div class="hh-grid" id="hhGrid"></div>
+      </section>
+
+      <!-- ================= TRANG HỒ SƠ ================= -->
+      <section class="page" data-page="hoso" aria-label="Hồ sơ cá nhân">
+        <div class="hs-head">
+          <button class="hs-avatar" id="hsAvatar" type="button" aria-label="Đổi tên hiển thị">P</button>
+          <div>
+            <div class="hs-ten" id="hsTen">Porter</div>
+            <small>Nhà leo núi · chạm avatar để đổi tên</small>
+          </div>
+        </div>
+        <div class="card"><div class="stats hs4" id="hsStats"></div></div>
+        <div class="hs-lbl">Hoạt động gần đây</div>
+        <div class="hs-lichsu" id="hsLichSu"></div>
+      </section>
+
     </div>
+
+    <!-- tabbar -->
+    <nav class="tabbar" aria-label="Điều hướng chính">
+      <button class="tb on" id="tbHome" type="button"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/></svg>Trang chủ</button>
+      <button class="tb" id="tbLT" type="button"><svg viewBox="0 0 24 24"><path d="M3 18 9 7l3.5 5 2-3L21 18Z"/><path d="M3 18h18"/></svg>Lộ Trình</button>
+      <button class="tb-cam" id="tbCam" type="button" aria-label="Máy ảnh — tự tạo tuyến đường của bạn" title="Tự tạo tuyến đường của bạn"><svg viewBox="0 0 24 24"><path d="M4 8h3.2L9.4 5.5h5.2L16.8 8H20v11H4Z"/><circle cx="12" cy="13" r="3.4"/></svg></button>
+      <button class="tb" id="tbTT" type="button"><svg viewBox="0 0 24 24"><path d="M6 21V4"/><path d="M6 4h12l-3 4 3 4H6"/></svg>Thử thách</button>
+      <button class="tb" id="tbHS" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>Hồ sơ</button>
+    </nav>
 
     <div class="homebar" aria-hidden="true"></div>
 
@@ -492,6 +626,32 @@
           <div class="ad-block">
             <div class="ad-lbl">Gắn ảnh cho điểm</div>
             <div class="ad-note">Console: <code>MountainTracker.ganAnh('cung','id-điểm',{anh:'data:…'})</code> · xem id điểm bằng <code>MountainTracker.dsDiem()</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- overlay chúc mừng hoàn thành hành trình -->
+    <div class="overlay" id="doneOverlay" hidden>
+      <div class="ov-backdrop" id="doneBackdrop"></div>
+      <div class="ov-card" role="dialog" aria-modal="true" aria-labelledby="doneTitle">
+        <div class="ov-head" style="padding-bottom:0">
+          <div style="flex:1"></div>
+          <button class="ov-close" id="doneClose" aria-label="Đóng">×</button>
+        </div>
+        <div class="ov-body">
+          <div class="done-hero" aria-hidden="true">🎉</div>
+          <div class="done-title" id="doneTitle">Chúc mừng!</div>
+          <div class="done-sub" id="doneSub"></div>
+          <div class="done-stats" id="doneStats"></div>
+          <div class="done-medal" id="doneMedal" hidden>
+            <span class="hh-coin" aria-hidden="true">⛰</span>
+            <div><b>Huy hiệu mới: <span id="doneMedalTen"></span></b><small>Đã thêm vào bộ sưu tập huy chương của bạn</small></div>
+          </div>
+          <div class="done-actions">
+            <button class="btn-primary" id="doneOk" type="button">Tuyệt vời!</button>
+            <button class="btn-ghost" id="doneShare" type="button">📣 Chia sẻ lên Trang chủ</button>
+            <button class="btn-ghost" id="doneXemHH" type="button" hidden>Xem huy chương ›</button>
           </div>
         </div>
       </div>
@@ -725,6 +885,7 @@
   const gContour = el('g', {}, gView);
   const gRoute   = el('g', {}, gView);
   const gProg    = el('g', {}, gView);
+  const gLive    = el('g', {}, gView);   /* vệt GPS riêng của bạn — vẽ THÊM, không thay tuyến mẫu */
   const gPins    = el('g', {}, gView);
   function applyView(){ gView.setAttribute('transform', `translate(${viewTx.toFixed(2)} ${viewTy.toFixed(2)}) scale(${zoom.toFixed(3)})`); document.getElementById('zLvl').textContent = zoom.toFixed(1)+'×'; }
 
@@ -1015,7 +1176,22 @@
       g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openSheet(p); } });
     });
   }
-  function renderScene(){ renderContours(); renderRoute(); renderProgress(); renderPins(); applyView(); }
+  /* vệt GPS thật của bạn trên núi (màu cam) — đường thứ hai bên cạnh tuyến mẫu */
+  function renderVetRieng(){
+    gLive.innerHTML = '';
+    const c = cur();
+    if (c.custom) return;
+    const src = (recording && recPts.length >= 2) ? recPts : (c.vetRieng || []);
+    if (src.length < 2) return;
+    const pts = src.map(p => { const [x, z] = gpsToXZ(c, p.lat, p.lon); return project(x, z, heightAt(x, z) + HOFF); });
+    const d = 'M' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L');
+    el('path', {d, fill:'none', stroke:'#FC5200', 'stroke-width':4.2, 'stroke-linecap':'round', 'stroke-linejoin':'round', opacity:.3, filter:'url(#glow)'}, gLive);
+    el('path', {d, fill:'none', stroke:'#FC5200', 'stroke-width':2.2, 'stroke-linecap':'round', 'stroke-linejoin':'round', opacity:.95}, gLive);
+    const hd = pts[pts.length-1];
+    el('circle', {cx:hd[0], cy:hd[1], r:5, fill:'#FC5200', filter:'url(#glow)'}, gLive);
+    el('circle', {cx:hd[0], cy:hd[1], r:2.4, fill:'#fff'}, gLive);
+  }
+  function renderScene(){ renderContours(); renderRoute(); renderProgress(); renderVetRieng(); renderPins(); applyView(); }
 
   /* ---------- mặt cắt độ cao ---------- */
   const profSvg = document.getElementById('profileSvg');
@@ -1140,7 +1316,7 @@
   function renderRTabs(){
     const box = document.getElementById('rtabs');
     box.innerHTML = '';
-    THU_TU.forEach(id => {
+    THU_TU.filter(id => !CUNG[id].an).forEach(id => {
       const b = document.createElement('button');
       b.className = 'rtab' + (CUNG[id].custom ? ' custom' : '');
       b.textContent = CUNG[id].chipLabel || CUNG[id].ten;
@@ -1163,7 +1339,7 @@
   function renderHome(){
     const box = document.getElementById('homeList');
     box.innerHTML = '';
-    THU_TU.forEach(id => {
+    THU_TU.filter(id => !CUNG[id].an).forEach(id => {
       const c = CUNG[id];
       const b = document.createElement('button');
       b.className = 'hcard' + (c.custom ? ' custom' : '');
@@ -1186,9 +1362,13 @@
   function moTrang(p){
     document.querySelectorAll('.page').forEach(s => s.classList.toggle('active', s.dataset.page === p));
     document.getElementById('app').scrollTop = 0;
+    if (p === 'home') renderFeed();
     if (p === 'route') syncView();
+    if (p === 'thuthach'){ renderThuThach(); renderHuyChuong(); }
+    if (p === 'hoso') renderHoSo();
+    capNhatTab(p);
   }
-  document.getElementById('backBtn').addEventListener('click', () => moTrang('home'));
+  document.getElementById('backBtn').addEventListener('click', () => moTrang('lotrinh'));
 
   function resetView(){ zoom = 1; viewTx = 0; viewTy = 0; rot = 0; pitch = 0.6; velYaw = 0; velPitch = 0; if (inertiaRAF){ cancelAnimationFrame(inertiaRAF); inertiaRAF = 0; } }
   function renderAll(){ buildRouteGeo(); renderScene(); renderStats(); renderPtStrip(); renderProfile(); renderRTabs(); renderHome(); updateDemoTag(); updateCustomUI(); updateRouteHeader(); }
@@ -1240,8 +1420,8 @@
     if (!CUNG[id] || (id === cungId && !force)) return;
     const doiCung = id !== cungId;
     if (doiCung){ stopSim(); stopJourney(true); }
-    const apply = () => { cungId = id; rot = 0; tien = 0; resetView(); setStatus(''); renderAll(); if (map) clearLiveLayers(); syncView(); };
-    if (!doiCung || reduced){ riseK = 1; apply(); return; }
+    const apply = () => { cungId = id; rot = 0; tien = 0; resetView(); setStatus(''); renderAll(); if (map) clearLiveLayers(); syncView(); const pAct = document.querySelector('.page.active'); if (pAct) capNhatTab(pAct.dataset.page); };
+    if (!doiCung || reduced || document.hidden){ riseK = 1; apply(); return; }
     animateSwitch(apply);
   }
 
@@ -1283,7 +1463,7 @@
   document.getElementById('sheetClose').addEventListener('click', closeSheet);
   document.getElementById('sheetBackdrop').addEventListener('click', closeSheet);
   document.getElementById('sheetLogBtn').addEventListener('click', () => { closeSheet(); setTimeout(moNhatKy, reduced ? 0 : 280); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape'){ if (!sheet.hidden) closeSheet(); else if (!logOverlay.hidden) dongNhatKy(); else { const ad = document.getElementById('adminOverlay'); if (ad && !ad.hidden) dongAdmin(); } } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape'){ if (!sheet.hidden) closeSheet(); else if (!logOverlay.hidden) dongNhatKy(); else { const dn = document.getElementById('doneOverlay'); if (dn && !dn.hidden){ dongChucMung(); return; } const ad = document.getElementById('adminOverlay'); if (ad && !ad.hidden) dongAdmin(); } } });
 
   /* ---------- orbit 3D: kéo xoay + nghiêng + quán tính + zoom ---------- */
   function svgPoint(clientX, clientY){ const r = svg.getBoundingClientRect(); return [ (clientX - r.left)/r.width * 400, (clientY - r.top)/r.height * 402 ]; }
@@ -1395,8 +1575,16 @@
     if (!('geolocation' in navigator)){ setStatus('Thiết bị không hỗ trợ GPS.'); return; }
     stopSim();
     recording = true; recPts = []; recT0 = Date.now();
-    const c = cur(); c.track = []; c.geoTrack = []; c.tuyenThat = true;
-    buildRouteGeo(); tien = 0; renderScene();
+    const c = cur();
+    if (c.custom){
+      /* Tự đi: track mới thay track cũ */
+      c.track = []; c.geoTrack = []; c.tuyenThat = true;
+      buildRouteGeo(); tien = 0;
+    } else {
+      /* Cung núi: GIỮ NGUYÊN núi + tuyến mẫu, chỉ ghi vệt riêng màu cam đè lên */
+      c.vetRieng = null; tien = 0;
+    }
+    renderScene();
     /* cung "Tự đi" ghi trên bản đồ thật; cung núi ghi trên sơ đồ 3D */
     if (c.custom) showMap(true);
     if (mapOn && map){
@@ -1411,7 +1599,7 @@
     recWatch = navigator.geolocation.watchPosition(pos => {
       const { latitude, longitude, altitude, accuracy } = pos.coords;
       recPts.push({ lat:latitude, lon:longitude, ele: (typeof altitude === 'number' ? altitude : undefined) });
-      if (recPts.length >= 2) liveTrack();
+      if (recPts.length >= 2){ if (cur().custom) liveTrack(); else renderVetRieng(); }
       mapLive(accuracy);
       updateRecUI(accuracy);
     }, err => { setStatus('Không lấy được GPS: ' + err.message + ' — thử nút "Mô phỏng".'); setBanner('Không lấy được GPS: ' + err.message, 'err'); },
@@ -1425,12 +1613,20 @@
     startBtn.classList.remove('rec'); startLbl.textContent = 'Bắt đầu hành trình'; recBadge.hidden = true;
     const c = cur();
     if (recPts.length >= 2){
-      napTrack(cungId, recPts.map(p => ({ lat:p.lat, lon:p.lon, ele:p.ele })));
-      if (c.custom){ try{ localStorage.setItem('mt-track', JSON.stringify(recPts)); }catch(err){} }
+      const kmDi = recDist().toFixed(2).replace('.', ',');
+      if (c.custom){
+        napTrack(cungId, recPts.map(p => ({ lat:p.lat, lon:p.lon, ele:p.ele })));
+        try{ localStorage.setItem('mt-track', JSON.stringify(recPts)); }catch(err){}
+      } else {
+        /* cung núi: lưu vệt riêng, KHÔNG ghi đè tuyến GPX mẫu */
+        c.vetRieng = recPts.slice();
+        renderScene();
+      }
       const d = new Date();
       c.log = c.log || [];
-      c.log.push({ kind:'diem', ten:'Kết thúc hành trình', luc: pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.'+String(d.getFullYear()).slice(2)+' lúc '+pad(d.getHours())+':'+pad(d.getMinutes()), fields:[{n:'Quãng đường', v:String(c.km).replace('.',',')+' km'},{n:'Điểm ghi', v:recPts.length+' điểm GPS'}] });
-      if (!silent) setStatus('Đã lưu: ' + recPts.length + ' điểm · ' + String(c.km).replace('.',',') + ' km.');
+      c.log.push({ kind:'diem', ten:'Kết thúc hành trình', luc: pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.'+String(d.getFullYear()).slice(2)+' lúc '+pad(d.getHours())+':'+pad(d.getMinutes()), fields:[{n:'Quãng đường', v:kmDi+' km'},{n:'Điểm ghi', v:recPts.length+' điểm GPS'}] });
+      if (!silent) setStatus('Đã lưu: ' + recPts.length + ' điểm · ' + kmDi + ' km.');
+      tongKetHanhTrinh(c, silent);   /* tổng hợp + chúc mừng + xét huy hiệu */
     } else { updateDemoTag(); updateCustomUI(); if (!silent) setStatus('Chưa đủ điểm GPS để lưu — cần di chuyển thêm.'); }
     if (map){ clearLiveLayers(); if (mapOn){ syncMapRoute(false); if (recPts.length >= 2) setBanner('Đã lưu hành trình · ' + String(c.km).replace('.', ',') + ' km'); else setBanner('Chưa đủ điểm GPS để lưu.', 'wait'); } }
     renderStats(); renderProfile(); renderHome();
@@ -1618,7 +1814,7 @@
   function renderAreaSel(){
     const sel = document.getElementById('areaSel');
     sel.innerHTML = '';
-    THU_TU.filter(id => !CUNG[id].custom).forEach(id => {
+    THU_TU.filter(id => !CUNG[id].custom && !CUNG[id].an).forEach(id => {
       const o = document.createElement('option'); o.value = id; o.textContent = CUNG[id].ten + ' — ' + CUNG[id].viTri;
       sel.appendChild(o);
     });
@@ -1640,7 +1836,7 @@
   function moAdmin(){
     const sel = document.getElementById('adminCung');
     sel.innerHTML = '';
-    THU_TU.forEach(id => {
+    THU_TU.filter(id => !CUNG[id].an).forEach(id => {
       const o = document.createElement('option'); o.value = id;
       o.textContent = (CUNG[id].custom ? 'Cung của tôi' : CUNG[id].ten) + (CUNG[id].tuyenThat ? ' · GPX ✓' : '');
       sel.appendChild(o);
@@ -1675,6 +1871,303 @@
     };
     rd.readAsText(file); e.target.value = '';
   });
+
+  /* ============================================================
+     TABBAR + THỬ THÁCH + HUY CHƯƠNG + HỒ SƠ + CHÚC MỪNG
+     Huy hiệu: track GPS thật đi qua trong vòng 1 km quanh tọa độ
+     đỉnh/khu vực một cung → mở khóa huy hiệu cung đó (localStorage).
+     ============================================================ */
+  const layJSON = (k, mac) => { try{ const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? mac : v; }catch(e){ return mac; } };
+  const luuJSON = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+  const layHH = () => layJSON('mt-huyhieu', {});
+  const layTK = () => layJSON('mt-tongke', {km:0, leo:0, chuyen:0, giay:0});
+
+  function xetHuyHieu(){
+    for (const id of THU_TU){
+      const c = CUNG[id];
+      if (c.custom || c.an || !(c.gps.lat || c.gps.lon)) continue;
+      for (let i = 0; i < recPts.length; i++){
+        if (haversine(recPts[i], {lat:c.gps.lat, lon:c.gps.lon}) <= 1.0) return id;
+      }
+    }
+    return null;
+  }
+
+  /* ---------- tổng kết + chúc mừng sau hành trình ---------- */
+  const doneOverlay = document.getElementById('doneOverlay');
+  function moChucMung(o){
+    document.getElementById('doneSub').textContent = o.ten + ' · ' + new Date().toLocaleDateString('vi-VN');
+    const dstat = (v, l) => `<div class="done-stat"><b>${v}</b><span>${l}</span></div>`;
+    document.getElementById('doneStats').innerHTML =
+      dstat(o.km.toFixed(2).replace('.', ','), 'Quãng đường km') +
+      dstat(fmtTime(o.giay), 'Thời gian') +
+      dstat('+' + fmt(o.leo), 'Leo tích lũy m') +
+      dstat(fmtPace(o.giay, o.km), 'Nhịp độ /km');
+    const md = document.getElementById('doneMedal'), xemHH = document.getElementById('doneXemHH');
+    if (o.hhMoi){ md.hidden = false; xemHH.hidden = false; document.getElementById('doneMedalTen').textContent = CUNG[o.hhMoi].ten; }
+    else { md.hidden = true; xemHH.hidden = true; }
+    doneOverlay.hidden = false;
+    requestAnimationFrame(() => doneOverlay.classList.add('open'));
+  }
+  function dongChucMung(){ doneOverlay.classList.remove('open'); setTimeout(() => doneOverlay.hidden = true, reduced ? 0 : 300); }
+  document.getElementById('doneClose').addEventListener('click', dongChucMung);
+  document.getElementById('doneBackdrop').addEventListener('click', dongChucMung);
+  document.getElementById('doneOk').addEventListener('click', dongChucMung);
+  document.getElementById('doneXemHH').addEventListener('click', () => { dongChucMung(); setTimeout(() => moTrang('thuthach'), reduced ? 0 : 280); });
+
+  function tongKetHanhTrinh(c, silent){
+    const giay = Math.max(1, Math.round((Date.now() - recT0)/1000));
+    const kmDi = recDist();
+    let leoDi = 0;
+    for (let i = 1; i < recPts.length; i++){
+      const a = recPts[i-1].ele, b = recPts[i].ele;
+      if (typeof a === 'number' && typeof b === 'number' && b > a) leoDi += b - a;
+    }
+    leoDi = Math.round(leoDi);
+    let hhMoi = null;
+    const hhId = xetHuyHieu();
+    if (hhId){ const ds = layHH(); if (!ds[hhId]){ ds[hhId] = new Date().toISOString().slice(0,10); luuJSON('mt-huyhieu', ds); hhMoi = hhId; } }
+    const tk = layTK(); tk.km += kmDi; tk.leo += leoDi; tk.chuyen += 1; tk.giay += giay; luuJSON('mt-tongke', tk);
+    const ls = layJSON('mt-lichsu', []);
+    ls.push({ten: c.custom ? (c.khuVuc || 'Tuyến tự đi') : c.ten, km: +kmDi.toFixed(2), giay, ngay: new Date().toLocaleDateString('vi-VN')});
+    luuJSON('mt-lichsu', ls.slice(-30));
+    /* giữ lại chuyến vừa xong để "Chia sẻ lên Trang chủ" */
+    const buoc = Math.max(1, Math.floor(recPts.length / 80));
+    const ptsGon = recPts.filter((_, i) => i % buoc === 0).map(p => [+p.lat.toFixed(5), +p.lon.toFixed(5), (typeof p.ele === 'number') ? Math.round(p.ele) : null]);
+    const cuoi = recPts[recPts.length - 1];
+    if (ptsGon.length && (ptsGon[ptsGon.length-1][0] !== +cuoi.lat.toFixed(5))) ptsGon.push([+cuoi.lat.toFixed(5), +cuoi.lon.toFixed(5), (typeof cuoi.ele === 'number') ? Math.round(cuoi.ele) : null]);
+    chuyenVuaXong = {ten: c.custom ? (c.khuVuc || 'Tuyến tự đi') : c.ten, km: kmDi, giay, leo: leoDi, hhMoi, pts: ptsGon};
+    if (!silent) moChucMung({ten: chuyenVuaXong.ten, km: kmDi, giay, leo: leoDi, hhMoi});
+  }
+  let chuyenVuaXong = null;
+
+  /* ---------- trang Thử thách ---------- */
+  const TT_DS = [
+    {id:'noc-nha', ten:'Nóc nhà Đông Dương', mt:'Chinh phục đỉnh Fansipan 3.147 m', can:['fansipan']},
+    {id:'taybac5', ten:'5 đỉnh Tây Bắc', mt:'Fansipan · Kỳ Quan San · Putaleng · Tà Chì Nhù · Lảo Thẩn', can:['fansipan','kyquansan','putaleng','tachinhu','laothan']},
+    {id:'laichau4', ten:'Bộ tứ Lai Châu', mt:'Chu Va 12 · Khang Su Văn · Nam Kang Ho Tao · Tả Liên Sơn', can:['chuva12','kangsuvan','namkang','talienson']},
+    {id:'hangdong', ten:'Vương quốc hang động', mt:'Tú Làn và Sơn Đoòng — Quảng Bình', can:['tulan','sondoong']},
+    {id:'km100', ten:'100 km khám phá', mt:'Tích lũy 100 km ghi GPS thật trên mọi tuyến', km:100}
+  ];
+  function renderThuThach(){
+    const box = document.getElementById('ttList');
+    const hh = layHH(), tk = layTK();
+    box.innerHTML = '';
+    TT_DS.forEach(t => {
+      let dat, tong, nhan;
+      if (t.km){ dat = Math.min(t.km, tk.km); tong = t.km; nhan = dat.toFixed(1).replace('.', ',') + ' / ' + tong + ' km'; }
+      else { dat = t.can.filter(id => hh[id]).length; tong = t.can.length; nhan = dat + ' / ' + tong + ' cung'; }
+      const pct = Math.round(dat/tong*100);
+      const d = document.createElement('div');
+      d.className = 'tt-card' + (pct >= 100 ? ' done' : '');
+      d.innerHTML = `<b>${esc(t.ten)}</b><small>${esc(t.mt)}</small>
+        <div class="tt-bar"><i style="width:${pct}%"></i></div>
+        <div class="tt-meta"><span>${nhan}</span><span>${pct}%</span></div>`;
+      box.appendChild(d);
+    });
+  }
+
+  /* ---------- trang Huy chương ---------- */
+  function renderHuyChuong(){
+    const box = document.getElementById('hhGrid');
+    const hh = layHH();
+    const ds = THU_TU.filter(id => !CUNG[id].custom && !CUNG[id].an);
+    document.getElementById('hhSub').textContent = Object.keys(hh).length + ' / ' + ds.length + ' huy hiệu đã mở khóa';
+    box.innerHTML = '';
+    ds.forEach(id => {
+      const c = CUNG[id], co = hh[id];
+      const d = document.createElement('div');
+      d.className = 'hh-item' + (co ? '' : ' khoa');
+      d.innerHTML = `<span class="hh-coin" aria-hidden="true">${co ? (c.loai === 'hang' ? '🦇' : '⛰') : '🔒'}</span>
+        <b>${esc(c.ten)}</b><small>${co ? co : (c.dinh ? fmt(c.dinh) + ' m' : '—')}</small>`;
+      box.appendChild(d);
+    });
+  }
+
+  /* ---------- trang Hồ sơ ---------- */
+  function renderHoSo(){
+    const ten = layJSON('mt-ten', 'Porter');
+    document.getElementById('hsTen').textContent = ten;
+    document.getElementById('hsAvatar').textContent = ten.trim().charAt(0).toUpperCase() || 'P';
+    const tk = layTK(), soHH = Object.keys(layHH()).length;
+    const stat = (v, u, l) => `<div class="stat"><div class="k">${l}</div><div class="v">${v} <span class="u">${u}</span></div></div>`;
+    document.getElementById('hsStats').innerHTML =
+      stat(tk.km.toFixed(1).replace('.', ','), 'km', 'Tổng quãng đường') +
+      stat('+' + fmt(Math.round(tk.leo)), 'm', 'Tổng leo') +
+      stat(tk.chuyen, 'chuyến', 'Hành trình') +
+      stat(soHH, 'huy hiệu', 'Đã mở khóa');
+    const box = document.getElementById('hsLichSu');
+    const ls = layJSON('mt-lichsu', []).slice().reverse();
+    box.innerHTML = ls.length ? '' : '<div class="log-empty">Chưa có hoạt động.<br>Bấm nút máy ảnh để tự tạo tuyến đường của bạn.</div>';
+    ls.slice(0, 10).forEach(r => {
+      const d = document.createElement('div');
+      d.className = 'ls-row';
+      d.innerHTML = `<div><b>${esc(r.ten)}</b><small>${esc(r.ngay)}</small></div>
+        <div class="ls-num">${String(r.km).replace('.', ',')} km<br>${fmtTime(r.giay)}</div>`;
+      box.appendChild(d);
+    });
+  }
+  document.getElementById('hsAvatar').addEventListener('click', () => {
+    const t = prompt('Tên hiển thị của bạn:', layJSON('mt-ten', 'Porter'));
+    if (t && t.trim()){ luuJSON('mt-ten', t.trim()); renderHoSo(); }
+  });
+
+  /* ---------- bảng tin cộng đồng (local + bài mẫu, sẵn chỗ cắm backend) ---------- */
+  const layFeed = () => layJSON('mt-feed', null);
+  const luuFeed = ds => luuJSON('mt-feed', ds);
+  function tinhTuGPX(pts){
+    let km = 0, leo = 0;
+    for (let i = 1; i < pts.length; i++){
+      km += haversine({lat:pts[i-1][0], lon:pts[i-1][1]}, {lat:pts[i][0], lon:pts[i][1]});
+      const a = pts[i-1][2], b = pts[i][2];
+      if (a != null && b != null && b > a) leo += b - a;
+    }
+    return {km, leo: Math.round(leo)};
+  }
+  function seedFeed(){
+    /* v2: bài mẫu kèm ẢNH THẬT trong photos/ — giữ lại bài do người dùng đăng khi nâng cấp */
+    if (layJSON('mt-feed-v', 0) >= 2) return;
+    const cuaToi = (layFeed() || []).filter(p => p.cuaToi);
+    const ds = [];
+    const themMau = o => {
+      if (o.gpx){
+        const raw = GPX_EMBED[o.gpx] || [];
+        const buoc = Math.max(1, Math.floor(raw.length / 70));
+        o.pts = raw.filter((_, i) => i % buoc === 0);
+        const tt = tinhTuGPX(o.pts);
+        o.km = +tt.km.toFixed(1); o.leo = tt.leo; o.giay = Math.round(tt.km * 1250); o.hh = o.gpx;
+        const meta = CUNG[o.gpx] || GPX_META[o.gpx] || {};
+        o.cung = meta.ten || o.gpx; o.viTri = meta.viTri || '';
+        delete o.gpx;
+      } else { o.pts = []; o.km = null; o.giay = null; o.leo = null; o.hh = null; }
+      ds.push(Object.assign({id:'mau-' + ds.length, anh:null, daTim:false, bl:[], cuaToi:false}, o));
+    };
+    /* thứ tự cũ → mới (feed hiển thị đảo ngược) */
+    themMau({ten:'Hùng Nguyễn', mau:'#5B7E9C', ngay:'2 tuần trước', cung:'Hồ Bản Viết', viTri:'Trùng Khánh, Cao Bằng', anh:'photos/cb-d.jpg', tim:34});
+    themMau({ten:'Thu Trang', mau:'#8B7BA6', ngay:'1 tuần trước', gpx:'nhiucosan', anh:'photos/yty-2.jpg', tim:21});
+    themMau({ten:'Ngọc Lan', mau:'#B07C8E', ngay:'6 ngày trước', cung:'Bản Y Tý', viTri:'Bát Xát, Lào Cai', anh:'photos/yty-4.jpg', tim:17});
+    themMau({ten:'Đức Anh', mau:'#7E93AC', ngay:'5 ngày trước', gpx:'taxua', anh:'photos/bacha-pano.jpg', tim:8});
+    themMau({ten:'Hải Đăng', mau:'#A98F5E', ngay:'3 ngày trước', cung:'Phja Oắc — 1.931 m', viTri:'Nguyên Bình, Cao Bằng', anh:'photos/caobang-2.jpg', tim:26});
+    themMau({ten:'Mai Hương', mau:'#B0765A', ngay:'2 ngày trước', gpx:'kyquansan', anh:'photos/yt-a.jpg', tim:12});
+    themMau({ten:'Tuấn Vũ', mau:'#6FA08A', ngay:'Hôm qua', gpx:'laothan', anh:'photos/yt-b.jpg', tim:5});
+    luuFeed(ds.concat(cuaToi));
+    luuJSON('mt-feed-v', 2);
+  }
+  /* diagram thu nhỏ tự sinh từ GPX của chuyến đi (nhìn giống cung mẫu) */
+  function miniDiagram(pts){
+    if (!pts || pts.length < 2) return '';
+    const la0 = pts.reduce((s,p) => s + p[0], 0) / pts.length;
+    const cosL = Math.cos(la0*Math.PI/180);
+    const xy = pts.map(p => [p[1]*111.32*cosL, -p[0]*110.574]);
+    let xMin=1e9, xMax=-1e9, yMin=1e9, yMax=-1e9;
+    xy.forEach(([x,y]) => { if(x<xMin)xMin=x; if(x>xMax)xMax=x; if(y<yMin)yMin=y; if(y>yMax)yMax=y; });
+    const W=320, H=150, PAD=26, SQ=0.62;
+    const sc = Math.min((W-2*PAD)/Math.max(.001,xMax-xMin), (H-2*PAD)/Math.max(.001,(yMax-yMin)*SQ));
+    const px = xy.map(([x,y]) => [W/2 + (x-(xMin+xMax)/2)*sc, H/2 + (y-(yMin+yMax)/2)*sc*SQ]);
+    let hi = 0; pts.forEach((p,i) => { if ((p[2]||0) > (pts[hi][2]||0)) hi = i; });
+    const [cx, cy] = px[hi];
+    let rings = '';
+    [14,26,40,56].forEach((r,i) => rings += `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${r}" ry="${(r*SQ).toFixed(1)}" fill="none" stroke="#3A4045" stroke-width="1" opacity="${(0.9-i*0.18).toFixed(2)}"/>`);
+    const d = 'M' + px.map(p => p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L');
+    const A = px[0], B = px[px.length-1];
+    return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${rings}
+      <path d="${d}" fill="none" stroke="#C9E265" stroke-width="4.5" opacity=".22" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${d}" fill="none" stroke="#F2F4F2" stroke-width="1.8" stroke-dasharray="1 6" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${A[0].toFixed(1)}" cy="${A[1].toFixed(1)}" r="4.5" fill="#C9E265"/><text x="${A[0].toFixed(1)}" y="${(A[1]+0.5).toFixed(1)}" font-size="6" font-weight="700" fill="#182200" text-anchor="middle" dominant-baseline="central">S</text>
+      <circle cx="${B[0].toFixed(1)}" cy="${B[1].toFixed(1)}" r="4.5" fill="#F2F3F1"/><text x="${B[0].toFixed(1)}" y="${(B[1]+0.5).toFixed(1)}" font-size="6" font-weight="700" fill="#121315" text-anchor="middle" dominant-baseline="central">F</text>
+    </svg>`;
+  }
+  function renderFeed(){
+    seedFeed();
+    const box = document.getElementById('fdList');
+    const ds = layFeed() || [];
+    box.innerHTML = '';
+    if (!ds.length){ box.innerHTML = '<div class="fd-empty">Chưa có bài chia sẻ.<br>Đi một cung bằng nút máy ảnh rồi bấm "Chia sẻ lên Trang chủ".</div>'; return; }
+    ds.slice().reverse().forEach(p => {
+      const card = document.createElement('article');
+      card.className = 'fd-card';
+      const stat = (v, l) => `<div><span>${l}</span><b>${v}</b></div>`;
+      card.innerHTML = `
+        <div class="fd-head">
+          <span class="fd-av" style="background:${esc(p.mau)}">${esc((p.ten||'?').charAt(0).toUpperCase())}</span>
+          <div class="fd-who"><b>${esc(p.ten)}</b><small>${esc(p.ngay)}${p.viTri ? ' · ' + esc(p.viTri) : ''}</small></div>
+          ${p.hh ? `<span class="fd-hh">🏅 ${esc((CUNG[p.hh]||{ten:p.cung}).ten)}</span>` : ''}
+        </div>
+        ${p.anh ? `<div class="fd-anh"><img src="${esc(p.anh)}" alt="Ảnh chuyến đi ${esc(p.cung)}" loading="lazy"></div>` : ''}
+        <div class="fd-stats">${stat(esc(p.cung), 'Cung')}${p.km != null ? stat(String(p.km).replace('.', ','), 'km') + stat(fmtTime(p.giay), 'Thời gian') + stat('+' + fmt(p.leo), 'Leo m') : ''}</div>
+        <div class="fd-act">
+          <button class="tim${p.daTim ? ' on' : ''}" type="button">❤ <span>${p.tim}</span></button>
+          <button class="bl-toggle" type="button">💬 ${p.bl.length}</button>
+          ${p.cuaToi && !p.anh ? '<label>📷 Thêm ảnh<input type="file" accept="image/*" hidden></label>' : ''}
+        </div>
+        <div class="fd-bl" hidden>
+          ${p.bl.map(b => `<div class="bl"><b>${esc(b.ten)}</b>${esc(b.nd)}</div>`).join('')}
+          <div class="fd-blinput"><input placeholder="Viết bình luận…" maxlength="200" aria-label="Bình luận"><button type="button">Gửi</button></div>
+        </div>`;
+      card.querySelector('.tim').addEventListener('click', () => capNhatBai(p.id, b => { b.daTim = !b.daTim; b.tim += b.daTim ? 1 : -1; }));
+      const blBox = card.querySelector('.fd-bl');
+      card.querySelector('.bl-toggle').addEventListener('click', () => blBox.hidden = !blBox.hidden);
+      const inp = blBox.querySelector('input');
+      const gui = () => { const t = inp.value.trim(); if (t) capNhatBai(p.id, b => b.bl.push({ten: layJSON('mt-ten', 'Porter'), nd: t})); };
+      blBox.querySelector('.fd-blinput button').addEventListener('click', gui);
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') gui(); });
+      const fileInp = card.querySelector('.fd-act input[type=file]');
+      if (fileInp) fileInp.addEventListener('change', e => themAnhBai(p.id, e.target.files && e.target.files[0]));
+      box.appendChild(card);
+    });
+  }
+  function capNhatBai(id, fn){ const ds = layFeed() || []; const b = ds.find(x => x.id === id); if (!b) return; fn(b); luuFeed(ds); renderFeed(); }
+  function themAnhBai(id, file){
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      const w = Math.min(640, img.width), h = Math.round(img.height * w / img.width);
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      capNhatBai(id, b => b.anh = cv.toDataURL('image/jpeg', .8));
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(file);
+  }
+  function taoBaiViet(ch){
+    seedFeed();
+    const ds = layFeed() || [];
+    const now = new Date();
+    ds.push({id:'p' + Date.now(), ten: layJSON('mt-ten', 'Porter'), mau:'#6FA08A',
+      ngay: now.toLocaleDateString('vi-VN') + ' ' + now.toTimeString().slice(0,5),
+      cung: ch.ten, viTri:'', km:+ch.km.toFixed(2), giay: ch.giay, leo: ch.leo,
+      hh: ch.hhMoi || null, pts: ch.pts, anh:null, tim:0, daTim:false, bl:[], cuaToi:true});
+    luuFeed(ds);
+  }
+  /* bấm diagram trên feed → mở xem tuyến đầy đủ (cung ẩn 'baiviet') */
+  function xemBaiViet(p){
+    if (!p.pts || p.pts.length < 2) return;
+    if (!CUNG.baiviet) themCung({id:'baiviet', an:true, ten:p.cung, viTri:'', gps:{lat:p.pts[0][0], lon:p.pts[0][1]}, gpsApprox:false});
+    const c = CUNG.baiviet;
+    c.ten = p.cung; c.viTri = 'Chia sẻ bởi ' + p.ten; c.fitTrack = true; c.vetRieng = null;
+    napTrack('baiviet', p.pts.map(a => ({lat:a[0], lon:a[1], ele: a[2] != null ? a[2] : undefined})));
+    autoPins(c);
+    chonCung('baiviet', true); moTrang('route');
+  }
+  document.getElementById('doneShare').addEventListener('click', () => {
+    if (chuyenVuaXong) taoBaiViet(chuyenVuaXong);
+    dongChucMung();
+    setTimeout(() => moTrang('home'), reduced ? 0 : 280);
+  });
+
+  /* ---------- tabbar ---------- */
+  const TAB_CUA_TRANG = {home:'tbHome', lotrinh:'tbLT', thuthach:'tbTT', hoso:'tbHS'};
+  function capNhatTab(p){
+    document.querySelectorAll('.tabbar .tb').forEach(b => b.classList.remove('on'));
+    let id = TAB_CUA_TRANG[p];
+    if (p === 'route' && !cur().custom) id = 'tbLT';   /* xem cung từ Lộ Trình */
+    if (id) document.getElementById(id).classList.add('on');
+  }
+  document.getElementById('tbHome').addEventListener('click', () => moTrang('home'));
+  document.getElementById('tbLT').addEventListener('click', () => moTrang('lotrinh'));
+  document.getElementById('tbTT').addEventListener('click', () => moTrang('thuthach'));
+  document.getElementById('tbHS').addEventListener('click', () => moTrang('hoso'));
+  document.getElementById('tbCam').addEventListener('click', () => { chonCung('custom'); moTrang('route'); });
 
   /* ---------- API ---------- */
   function gpsToXZ(c, lat, lon){ const la0 = c.gps.lat, lo0 = c.gps.lon, K = kmDV(c); return [ (lon - lo0) * 111.32 * Math.cos(la0*Math.PI/180) / K, -(lat - la0) * 110.574 / K ]; }
@@ -1781,6 +2274,16 @@
   window.MountainTracker = {
     napTrack, napGPX, napKML, ganAnh, themCung, chonCung, moTrang, moNhatKy, moAdmin, dsDiem,
     dsCung: () => THU_TU.slice(), cungHienTai: () => CUNG[cungId],
+    /* demo luồng hoàn thành: nạp track GPX của cung làm hành trình giả → chúc mừng + huy hiệu */
+    demoHoanThanh: id => {
+      const c = CUNG[id || 'fansipan'];
+      if (!c || !(c.geoTrack || []).length) return false;
+      recPts = c.geoTrack.map(p => ({lat:p.lat, lon:p.lon, ele:p.ele}));
+      recT0 = Date.now() - 5*3600e3;
+      tongKetHanhTrinh(c, false);
+      recPts = [];
+      return true;
+    },
     cauHinh: { osmCache:false, osmURL:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                ghiChu:'Bật osmCache khi deploy app riêng — bản artifact bị CSP chặn tile ngoài.' }
   };
@@ -1789,6 +2292,7 @@
   khoiPhucLocal();
   renderAreaSel();
   renderAll();
+  renderFeed();                                      /* trang chủ = bảng tin cộng đồng */
   syncView();                                        /* cung núi → sơ đồ 3D · Tự đi → bản đồ thật */
 })();
 </script>
