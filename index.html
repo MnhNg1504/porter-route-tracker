@@ -1,0 +1,1796 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Route Tracker — Cung leo Việt Nam</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --ground:#000000;
+    --card:#101214;
+    --panel:#1A1D20;
+    --badge:#1E2225;
+    --line:#1F2327;
+    --ink:#EFF1F0;
+    --mute:#7E8387;
+    --hairline:#26292D;
+    --signal:#FF5233;
+    --camp:#A9CDD8;
+    --go:#C9E265;
+    --glow:#EAFFE6;
+    --radius:26px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    font-family:"Segoe UI","SF Pro Text",-apple-system,BlinkMacSystemFont,Roboto,"Helvetica Neue",Arial,sans-serif;
+    color:var(--ink);-webkit-font-smoothing:antialiased;
+    background:#000;
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;padding:12px;
+  }
+
+  /* ---------- khung iPhone (OLED đen liền tai thỏ) ---------- */
+  .device{
+    position:relative;width:390px;max-width:100%;
+    height:min(844px,calc(100vh - 20px));
+    background:#000;border-radius:52px;padding:11px;
+    box-shadow:0 0 0 2px #2A2D31, 0 0 60px -20px rgba(120,150,140,.25);
+  }
+  .di{position:absolute;top:20px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:20px;z-index:30;box-shadow:inset 0 0 0 1px #0A0B0C}
+  .screen-inner{position:relative;height:100%;border-radius:42px;overflow:hidden;background:var(--ground);display:flex;flex-direction:column}
+  .statusbar{flex:none;height:52px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 8px;font-size:14px;font-weight:600;color:#E8ECEA}
+  .statusbar .sb-r{display:flex;align-items:center;gap:6px}
+  .statusbar .sb-r svg{height:12px;fill:#E8ECEA}
+  .homebar{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:rgba(240,244,242,.35);z-index:20}
+
+  .app{flex:1;overflow-y:auto;overflow-x:hidden;padding:2px 14px 30px;scrollbar-width:none}
+  .app::-webkit-scrollbar{display:none}
+
+  /* ---------- điều hướng trang ---------- */
+  .page{display:none;flex-direction:column;gap:14px}
+  .page.active{display:flex}
+  @media (prefers-reduced-motion:no-preference){.page.active{animation:fade .28s ease}}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}}
+
+  /* ---------- TRANG HOME ---------- */
+  .app-head{display:flex;align-items:center;gap:11px;padding:4px 2px 0}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand-mark{width:38px;height:38px;border-radius:11px;background:var(--card);border:1px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center}
+  .brand-mark svg{width:20px;height:20px;stroke:var(--go);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .brand-name{font-size:15.5px;font-weight:700;letter-spacing:.2px;color:var(--ink)}
+  .brand-sub{font-size:11px;color:var(--mute);margin-top:1px}
+  .head-btn{margin-left:auto;width:38px;height:38px;border-radius:11px;border:1px solid var(--line);cursor:pointer;background:var(--card);color:#C6CACD;display:flex;align-items:center;justify-content:center}
+  .head-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round}
+
+  .home-intro{padding:8px 2px 0}
+  .home-intro h1{font-size:24px;font-weight:700;letter-spacing:.2px}
+  .home-intro p{font-size:12.5px;color:var(--mute);margin-top:4px}
+
+  .home-list{display:flex;flex-direction:column;gap:10px}
+  .hcard{
+    display:flex;align-items:center;gap:13px;width:100%;text-align:left;cursor:pointer;font-family:inherit;
+    background:var(--card);border:1px solid var(--line);border-radius:20px;padding:15px 16px;color:var(--ink);
+    transition:border-color .15s, background .15s;
+  }
+  .hcard:hover{border-color:#33383D}
+  .hcard:focus-visible{outline:2px solid var(--go);outline-offset:2px}
+  .hc-info{flex:1;min-width:0}
+  .hc-info b{font-size:15.5px;font-weight:700;display:block}
+  .hc-info small{display:block;font-size:11.5px;color:var(--mute);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hc-meta{display:flex;gap:10px;margin-top:8px;font-size:11px;color:#A9AEB2;font-variant-numeric:tabular-nums;flex-wrap:wrap}
+  .hc-meta span{white-space:nowrap}
+  .hc-meta span b{font-weight:600;color:var(--ink);font-size:11px}
+  .hc-spark{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+  .hc-spark svg{display:block}
+  .hc-chev{color:var(--mute);font-size:19px;line-height:1}
+  .hcard.custom{border-style:dashed;border-color:#374024}
+  .hcard.custom .hc-plus{width:38px;height:38px;border-radius:12px;background:rgba(201,226,101,.12);color:var(--go);font-size:21px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none}
+
+  /* ---------- TRANG DIAGRAM ---------- */
+  .route-top{display:flex;align-items:center;gap:10px;padding:4px 0 0}
+  .icon-btn{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);cursor:pointer;background:var(--card);color:var(--ink);font-size:21px;line-height:1;display:flex;align-items:center;justify-content:center;flex:none}
+  .icon-btn:focus-visible{outline:2px solid var(--go);outline-offset:2px}
+  .icon-btn svg{width:17px;height:17px;stroke:#C6CACD;fill:none;stroke-width:1.6;stroke-linecap:round}
+  .rt-title{flex:1;min-width:0}
+  .rt-title b{display:block;font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rt-title small{display:block;font-size:11px;color:var(--mute);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .rtabs{display:flex;gap:18px;overflow-x:auto;padding:2px 4px 6px;scrollbar-width:none;cursor:grab;
+    -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent);
+    mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent)}
+  .rtabs:active{cursor:grabbing}
+  .rtabs::-webkit-scrollbar{display:none}
+  .rtab{background:none;border:0;font-family:inherit;font-size:13.5px;font-weight:600;color:#6E7377;padding:6px 0 8px;position:relative;white-space:nowrap;cursor:pointer;letter-spacing:.2px}
+  .rtab[aria-pressed="true"]{color:var(--ink)}
+  .rtab[aria-pressed="true"]::after{content:'';position:absolute;left:50%;transform:translateX(-50%);bottom:0;width:18px;height:3px;border-radius:2px;background:var(--go)}
+  .rtab.custom{color:#8FA24C}
+  .rtab.custom[aria-pressed="true"]{color:var(--go)}
+  .rtab:focus-visible{outline:2px solid var(--go);outline-offset:2px;border-radius:6px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 20px}
+
+  /* ---------- cảnh núi ---------- */
+  .scene-wrap{position:relative}
+  #scene{width:100%;height:auto;display:block;touch-action:none;cursor:grab;user-select:none}
+  #scene:active{cursor:grabbing}
+  .pin{cursor:pointer;outline:none}
+  .hint{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#585D61;pointer-events:none;white-space:nowrap}
+  .route-dash{animation:march 26s linear infinite}
+  @keyframes march{to{stroke-dashoffset:-320}}
+
+  .prog-pill{position:absolute;top:10px;left:0;z-index:5;background:rgba(24,27,29,.85);color:var(--ink);font-size:11px;padding:6px 10px;border-radius:999px;display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+  .prog-pill b{font-weight:700}
+  .prog-pill .pdot{width:7px;height:7px;border-radius:50%;background:var(--go);box-shadow:0 0 7px var(--go)}
+  .demo-tag{position:absolute;top:10px;right:0;z-index:5;background:rgba(255,82,51,.13);color:#FF9078;font-size:10px;letter-spacing:.3px;padding:5px 9px;border-radius:999px;border:1px solid rgba(255,82,51,.3)}
+  .demo-tag[hidden]{display:none}
+  .rec-badge{position:absolute;top:10px;right:0;z-index:6;display:flex;align-items:center;gap:6px;background:rgba(255,82,51,.16);color:#FF9078;border:1px solid rgba(255,82,51,.42);font-size:10px;font-weight:700;letter-spacing:.5px;padding:5px 10px;border-radius:999px}
+  .rec-badge[hidden]{display:none}
+  .rec-badge .rd{width:7px;height:7px;border-radius:50%;background:var(--signal)}
+  @media (prefers-reduced-motion:no-preference){.rec-badge .rd{animation:blink 1s steps(2,jump-none) infinite}}
+  @keyframes blink{50%{opacity:.2}}
+
+  .zoomctl{position:absolute;right:0;bottom:30px;z-index:5;display:flex;flex-direction:column;gap:6px}
+  .zoomctl button{width:31px;height:31px;border-radius:10px;border:1px solid var(--line);cursor:pointer;background:rgba(24,27,29,.85);color:var(--ink);font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center}
+  .zoomctl button:focus-visible{outline:2px solid var(--go);outline-offset:2px}
+  .zoomctl .z-lvl{font-size:9px;font-weight:700;color:var(--mute);text-align:center;font-variant-numeric:tabular-nums}
+
+  .upload-prompt{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px;background:rgba(6,7,8,.72);border-radius:14px}
+  .upload-prompt[hidden]{display:none}
+  .upload-prompt p{font-size:15px;font-weight:600;color:var(--ink)}
+  .upload-prompt small{font-size:11.5px;color:var(--mute)}
+  .upload-prompt label{cursor:pointer}
+
+  /* ---------- điều khiển hành trình ---------- */
+  .journey{margin-top:14px;display:flex;flex-direction:column;gap:9px}
+  .btn-primary{width:100%;border:0;cursor:pointer;font-family:inherit;font-size:15px;font-weight:700;padding:14px;border-radius:15px;background:var(--go);color:#182200;display:flex;align-items:center;justify-content:center;gap:9px;transition:background .15s}
+  .btn-primary .bdot{width:11px;height:11px;border-radius:50%;background:#182200}
+  .btn-primary.rec{background:var(--signal);color:#fff}
+  .btn-primary.rec .bdot{background:#fff;border-radius:3px}
+  .btn-primary:focus-visible{outline:2px solid #fff;outline-offset:2px}
+  .btn-ghost{width:100%;border:1px solid var(--line);cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;padding:11px;border-radius:14px;background:var(--panel);color:var(--ink);transition:background .15s}
+  .btn-ghost:hover{background:#22262A}
+  .btn-ghost.active{background:var(--go);border-color:var(--go);color:#182200}
+  .btn-ghost:focus-visible{outline:2px solid var(--go);outline-offset:2px}
+  .gps-status{font-size:11px;color:var(--mute);min-height:14px;font-variant-numeric:tabular-nums;text-align:center}
+
+  /* ---------- dữ liệu + mặt cắt ---------- */
+  .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px}
+  .stat .k{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--mute)}
+  .stat .v{font-size:15.5px;font-weight:600;margin-top:5px;font-variant-numeric:tabular-nums}
+  .stat .u{font-size:11px;color:var(--mute);font-weight:400}
+  .src{margin-top:15px;padding-top:13px;border-top:1px solid var(--hairline);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--mute);font-variant-numeric:tabular-nums}
+  .src b{color:#C6CACD;font-weight:500}
+
+  .profile{margin-top:16px}
+  .profile .lblrow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+  .profile .lblrow span:first-child{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--mute)}
+  .profile .lblrow span:last-child{font-size:11px;color:#C6CACD;font-variant-numeric:tabular-nums}
+  #profileSvg{width:100%;height:auto;display:block}
+
+  .meta-row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .mchip{font-size:11.5px;color:var(--mute);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 12px}
+  .mchip b{color:var(--ink);font-weight:600}
+
+  .pt-strip{margin-top:16px}
+  .pt-strip .lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--mute);margin-bottom:10px}
+  .pt-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;cursor:grab;
+    -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent);
+    mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent)}
+  .pt-scroll:active{cursor:grabbing}
+  .pt-scroll::-webkit-scrollbar{display:none}
+
+  /* chọn khu vực (Tự đi) */
+  .area-list{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+  .area-chip{border:1px solid var(--line);cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;padding:8px 13px;border-radius:999px;background:var(--panel);color:var(--ink)}
+  .area-chip:hover{border-color:var(--go)}
+  .area-chip:focus-visible{outline:2px solid var(--go);outline-offset:2px}
+  .area-new{display:flex;flex-direction:column;gap:7px;width:100%;max-width:250px;margin-top:4px}
+  .area-new input{background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:12.5px;padding:9px 11px;border-radius:11px;width:100%}
+  .area-new input::placeholder{color:#5C6165}
+  .area-new .row2{display:flex;gap:7px}
+  .area-new .btn-ghost{font-size:12.5px}
+
+  /* admin */
+  .ad-block{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+  .ad-lbl{font-size:12px;font-weight:600;letter-spacing:.4px;color:var(--ink);margin-bottom:8px}
+  .ad-note{font-size:11px;color:var(--mute);margin-top:8px;line-height:1.5;word-break:break-word}
+  .ad-select{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:13px;padding:10px;border-radius:12px}
+  .pt-chip{flex:none;border:1px solid var(--line);cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:8px;padding:8px 12px 8px 8px;border-radius:13px;background:var(--panel);color:var(--ink);white-space:nowrap;text-align:left}
+  .pt-chip:focus-visible{outline:2px solid var(--go);outline-offset:2px}
+  .pt-ic{width:24px;height:24px;border-radius:7px;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#121315}
+  .pt-ic svg{width:13px;height:13px;fill:none;stroke:#16282E;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .pt-chip b{font-size:12.5px;font-weight:600}
+  .pt-chip small{font-size:10.5px;color:var(--mute);display:block;margin-top:1px}
+
+  .link-row{margin-top:14px;width:100%;border:1px solid var(--line);cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:12px;padding:15px 16px;border-radius:16px;background:var(--panel);color:var(--ink);text-align:left}
+  .link-row:hover{background:#22262A}
+  .link-row:focus-visible{outline:2px solid var(--go);outline-offset:2px}
+  .link-row .lr-ic{width:34px;height:34px;border-radius:10px;background:var(--badge);flex:none;display:flex;align-items:center;justify-content:center}
+  .link-row .lr-ic svg{width:18px;height:18px;stroke:var(--go);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .link-row .lr-txt{flex:1;min-width:0}
+  .link-row .lr-txt b{font-size:14.5px;font-weight:600}
+  .link-row .lr-txt small{display:block;font-size:11.5px;color:var(--mute);margin-top:2px}
+  .link-row .lr-chev{color:var(--mute);font-size:20px}
+
+  /* ---------- nhật ký ---------- */
+  .log{display:flex;flex-direction:column}
+  .entry{display:grid;grid-template-columns:36px 1fr;column-gap:14px}
+  .rail{display:flex;flex-direction:column;align-items:center}
+  .node{width:32px;height:32px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#121315}
+  .node svg{width:15px;height:15px;fill:none;stroke:#16282E;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .node.white{background:#F2F3F1}
+  .node.camp{background:var(--camp)}
+  .node.signal{background:var(--signal)}
+  .node.signal svg{stroke:#fff}
+  .node.diem{background:var(--go)}
+  .node.diem svg{stroke:#2E3D12}
+  .rail .line{width:1px;flex:1;background:#2C3034;margin:6px 0}
+  .entry:last-child .rail .line{background:transparent}
+  .entry-body{padding-bottom:22px;min-width:0}
+  .entry:last-child .entry-body{padding-bottom:2px}
+  .entry-title{font-size:16px;font-weight:600;letter-spacing:.1px;padding-top:5px}
+  .entry-time{font-size:12px;color:var(--mute);margin-top:3px;font-variant-numeric:tabular-nums}
+  .avatars{display:flex;margin-top:10px}
+  .avatars .av{width:27px;height:27px;border-radius:50%;border:2px solid var(--card);margin-left:-7px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;color:#F6F4EF;letter-spacing:.3px}
+  .avatars .av:first-child{margin-left:0}
+  .panel{background:var(--panel);border-radius:18px;padding:14px 16px;margin-top:12px;display:grid;grid-template-columns:max-content 1fr;column-gap:14px;row-gap:9px;align-items:baseline}
+  .panel.two{grid-template-columns:max-content 1fr max-content 1fr}
+  .panel dt{font-size:12px;color:var(--mute);font-weight:400}
+  .panel dd{font-size:13px;color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums;min-width:0}
+  .panel a{color:var(--ink);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+  .approved{color:var(--go);display:inline-flex;align-items:center;gap:5px}
+  .approved svg{width:16px;height:11px;stroke:var(--go);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .log-empty{color:var(--mute);font-size:13px;text-align:center;padding:30px 10px;line-height:1.6}
+  @media (max-width:389px){.panel.two{grid-template-columns:max-content 1fr}}
+
+  /* ---------- overlay nhật ký ---------- */
+  .overlay{position:absolute;inset:0;z-index:50;display:flex;align-items:flex-end}
+  .overlay[hidden]{display:none}
+  .ov-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.62);opacity:0;transition:opacity .25s}
+  .overlay.open .ov-backdrop{opacity:1}
+  .ov-card{position:relative;width:100%;background:#0D0F11;border-top:1px solid var(--line);border-radius:26px 26px 0 0;max-height:88%;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .3s cubic-bezier(.22,.9,.3,1)}
+  .overlay.open .ov-card{transform:none}
+  .ov-head{flex:none;display:flex;align-items:center;gap:12px;padding:18px 18px 12px}
+  .ov-head h2{font-size:18px;font-weight:700}
+  .ov-head .ov-sub{font-size:11.5px;color:var(--mute);margin-top:1px}
+  .ov-close{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--badge);color:var(--ink);font-size:20px;cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center}
+  .ov-close:focus-visible{outline:2px solid var(--go);outline-offset:2px}
+  .ov-body{overflow-y:auto;padding:6px 18px 26px;scrollbar-width:none}
+  .ov-body::-webkit-scrollbar{display:none}
+
+  /* ---------- sheet điểm ---------- */
+  .sheet{position:absolute;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center}
+  .sheet[hidden]{display:none}
+  .sheet-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.62);opacity:0;transition:opacity .25s}
+  .sheet.open .sheet-backdrop{opacity:1}
+  .sheet-card{position:relative;width:100%;background:#0D0F11;border-top:1px solid var(--line);border-radius:26px 26px 0 0;padding:16px 16px 30px;transform:translateY(100%);transition:transform .28s cubic-bezier(.22,.9,.3,1)}
+  .sheet.open .sheet-card{transform:none}
+  .sheet-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--badge);color:var(--ink);font-size:19px;line-height:1;cursor:pointer;z-index:2}
+  .sheet-close:focus-visible{outline:2px solid var(--go);outline-offset:2px}
+  .sheet-photo{height:170px;border-radius:16px;overflow:hidden;background:var(--panel);display:flex;align-items:center;justify-content:center}
+  .sheet-photo img{width:100%;height:100%;object-fit:cover;display:block}
+  .sheet-photo .ph{color:var(--mute);text-align:center;font-size:12.5px;line-height:1.6;padding:0 16px}
+  .sheet-photo .ph small{color:#565B5F;font-size:10px;word-break:break-word}
+  .sheet-body{padding:14px 4px 4px}
+  .sheet-type{font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:var(--go)}
+  .sheet-body h3{font-size:19px;font-weight:600;margin:6px 0 8px;text-wrap:balance}
+  .sheet-body p{font-size:13.5px;color:#C6CACD;line-height:1.55}
+  .sheet-meta{margin-top:14px;display:grid;grid-template-columns:max-content 1fr;gap:7px 14px;font-size:12.5px}
+  .sheet-meta dt{color:var(--mute)}
+  .sheet-meta dd{color:var(--ink);font-variant-numeric:tabular-nums}
+  .sheet-link{margin-top:14px;background:none;border:0;color:var(--go);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;padding:4px 0}
+  .sheet-link:focus-visible{outline:2px solid var(--go);outline-offset:3px;border-radius:6px}
+  /* ---------- bản đồ thật (Leaflet, kiểu Strava) ---------- */
+  .map-mode{position:relative;height:438px;border-radius:16px;overflow:hidden;background:#0B0D10;border:1px solid var(--line)}
+  .map-mode[hidden]{display:none}
+  .scene-wrap.mapon #scene,
+  .scene-wrap.mapon .zoomctl,
+  .scene-wrap.mapon .hint,
+  .scene-wrap.mapon .upload-prompt,
+  .scene-wrap.mapon .prog-pill,
+  .scene-wrap.mapon .demo-tag,
+  .scene-wrap.mapon .rec-badge{display:none}
+  #realMap{position:absolute;inset:0;z-index:1;background:#0B0D10}
+  #realMap .leaflet-tile{filter:brightness(1.08) contrast(1.06) saturate(1.35)}
+  #realMap .leaflet-control-attribution{background:rgba(10,12,14,.65);color:#6A7075;font-size:9px}
+  #realMap .leaflet-control-attribution a{color:#8A9095}
+  .gps-banner{position:absolute;left:10px;right:10px;top:10px;z-index:500;text-align:center;font-size:13px;font-weight:700;padding:9px 12px;border-radius:12px;background:rgba(20,26,14,.9);color:#B7CF56;border:1px solid rgba(201,226,101,.28);backdrop-filter:blur(3px)}
+  .gps-banner.wait{color:#C6CACD;background:rgba(22,25,28,.9);border-color:var(--line)}
+  .gps-banner.err{color:#FF9078;background:rgba(48,18,12,.9);border-color:rgba(255,82,51,.35)}
+  .map-stats{position:absolute;left:10px;right:10px;bottom:10px;z-index:500;display:grid;grid-template-columns:1fr 1fr 1fr;background:rgba(10,12,14,.88);border:1px solid var(--line);border-radius:14px;padding:10px 4px;backdrop-filter:blur(4px)}
+  .map-stats div{text-align:center}
+  .map-stats b{display:block;font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+  .map-stats span{font-size:9px;color:var(--mute);letter-spacing:.5px;text-transform:uppercase}
+  .map-ctl{position:absolute;right:10px;bottom:80px;z-index:500;display:flex;flex-direction:column;gap:6px}
+  .map-ctl button{width:34px;height:34px;border-radius:11px;border:1px solid var(--line);cursor:pointer;background:rgba(24,27,29,.94);color:var(--ink);font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center}
+  .map-ctl button:focus-visible{outline:2px solid var(--go);outline-offset:2px}
+  .live-dot{width:18px!important;height:18px!important;margin:2px!important;border-radius:50%;background:#2E86FF;border:3px solid #fff;box-shadow:0 0 0 6px rgba(46,134,255,.22)}
+  @media (prefers-reduced-motion:no-preference){.live-dot{animation:gpspulse 2s ease-out infinite}}
+  @keyframes gpspulse{0%{box-shadow:0 0 0 0 rgba(46,134,255,.45)}70%{box-shadow:0 0 0 14px rgba(46,134,255,0)}100%{box-shadow:0 0 0 0 rgba(46,134,255,0)}}
+  .mk-pin{border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 11px/1 "Segoe UI",sans-serif;color:#121315;border:2px solid #0B0D10;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+  .mk-s{background:var(--go)}
+  .mk-f{background:#F2F3F1}
+  .vn-island{pointer-events:none}
+  .vn-island span{display:inline-block;transform:translate(-50%,-50%);text-align:center;white-space:nowrap;color:#A9CDD8;font:700 11px/1.3 "Segoe UI",sans-serif;letter-spacing:.4px;text-shadow:0 1px 3px #000,0 0 8px rgba(0,0,0,.95)}
+  .vn-island span small{display:block;font-size:8.5px;font-weight:600;color:#7E97A3;letter-spacing:.3px}
+
+  /* ---------- iPhone thật: bỏ khung vẽ, tràn toàn màn hình ---------- */
+  @media (max-width:500px){
+    body{padding:0}
+    .device{width:100%;max-width:none;height:100vh;height:100dvh;border-radius:0;padding:0;box-shadow:none}
+    .di,.statusbar,.homebar{display:none}
+    .screen-inner{border-radius:0}
+    .app{padding-top:calc(env(safe-area-inset-top,0px) + 10px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px)}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .route-dash{animation:none}
+    .sheet-backdrop,.sheet-card,.ov-backdrop,.ov-card{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="device">
+  <div class="di" aria-hidden="true"></div>
+  <div class="screen-inner">
+    <div class="statusbar" aria-hidden="true">
+      <span>9:41</span>
+      <span class="sb-r">
+        <svg viewBox="0 0 18 12"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="1.5" width="3" height="10.5" rx="1"/><rect x="15" y="1.5" width="3" height="10.5" rx="1" opacity=".35"/></svg>
+        <svg viewBox="0 0 16 12"><path d="M8 2.4c2.3 0 4.4.9 6 2.4l-1.4 1.5A6.6 6.6 0 0 0 8 4.5 6.6 6.6 0 0 0 3.4 6.3L2 4.8A8.6 8.6 0 0 1 8 2.4Zm0 3.4c1.3 0 2.6.5 3.5 1.5l-1.5 1.5A2.9 2.9 0 0 0 8 8a2.9 2.9 0 0 0-2 1.2L4.5 7.7A5 5 0 0 1 8 5.8Zm0 3.3 1.5 1.6L8 12 6.5 10.7 8 9.1Z"/></svg>
+        <svg viewBox="0 0 26 12"><rect x="0.5" y="1" width="21" height="10" rx="2.6" fill="none" stroke="#E8ECEA" stroke-width="1"/><rect x="2" y="2.6" width="16" height="6.8" rx="1.3"/><rect x="23" y="4" width="2" height="4" rx="1"/></svg>
+      </span>
+    </div>
+
+    <div class="app" id="app">
+
+      <!-- ================= TRANG HOME ================= -->
+      <section class="page active" data-page="home" aria-label="Danh sách cung đường">
+        <header class="app-head">
+          <div class="brand">
+            <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 19 9 8l3.5 5 2-3 6.5 9ZM3 19h18"/><path d="M9 8 8 4"/></svg></span>
+            <div><div class="brand-name">Route Tracker</div><div class="brand-sub">Cung leo Việt Nam</div></div>
+          </div>
+          <button class="head-btn" id="adminBtn1" type="button" aria-label="Admin"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+        </header>
+        <div class="home-intro">
+          <h1>Chọn cung đường</h1>
+          <p>18 cung với track GPX thật · 1 tuyến của riêng bạn</p>
+        </div>
+        <div class="home-list" id="homeList"></div>
+      </section>
+
+      <!-- ================= TRANG DIAGRAM ================= -->
+      <section class="page" data-page="route" aria-label="Bản đồ tuyến">
+        <div class="route-top">
+          <button class="icon-btn" id="backBtn" type="button" aria-label="Về danh sách cung">‹</button>
+          <div class="rt-title"><b id="routeTitle">—</b><small id="routeLoc">—</small></div>
+          <button class="icon-btn" id="adminBtn2" type="button" aria-label="Admin"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+        </div>
+
+        <nav class="rtabs" id="rtabs" aria-label="Tên các cung đường"></nav>
+
+        <div class="card">
+          <div class="scene-wrap">
+            <div class="prog-pill"><span class="pdot"></span><b id="progPct">0%</b>&nbsp;lộ trình</div>
+            <div class="demo-tag" id="demoTag">Tuyến minh họa</div>
+            <div class="rec-badge" id="recBadge" hidden><span class="rd"></span><span id="recText">GHI GPS</span></div>
+            <svg id="scene" viewBox="0 0 400 402" role="img" aria-label="Bản đồ đường đồng mức 3D; kéo xoay và nghiêng, véo để phóng, chạm điểm để xem">
+              <defs><filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+            </svg>
+            <div class="zoomctl">
+              <button id="zoomIn" type="button" aria-label="Phóng to">+</button>
+              <div class="z-lvl" id="zLvl">1.0×</div>
+              <button id="zoomOut" type="button" aria-label="Thu nhỏ">−</button>
+              <button id="viewReset" type="button" aria-label="Đặt lại góc nhìn">⟲</button>
+            </div>
+            <div class="upload-prompt" id="uploadPrompt" hidden>
+              <p>Bạn định đi đâu?</p>
+              <small>Chọn khu vực để lưu bản đồ offline trước chuyến đi</small>
+              <div class="area-new">
+                <select id="areaSel" class="ad-select" aria-label="Chọn cung có sẵn"></select>
+                <button class="btn-ghost" id="areaSave" type="button">Lưu gói offline khu vực này</button>
+              </div>
+              <div class="area-new">
+                <input id="areaName" placeholder="Hoặc: tên khu vực mới">
+                <div class="row2"><input id="areaLat" placeholder="Vĩ độ" inputmode="decimal"><input id="areaLon" placeholder="Kinh độ" inputmode="decimal"></div>
+                <button class="btn-ghost" id="areaMake" type="button">Tạo lưới khám phá khu mới</button>
+              </div>
+              <small>Sau đó bấm "Bắt đầu hành trình" để ghi GPS lên nền offline</small>
+            </div>
+            <span class="hint">Kéo xoay &amp; nghiêng · véo/cuộn để phóng · chạm điểm</span>
+            <div class="map-mode" id="mapMode" hidden>
+              <div id="realMap"></div>
+              <div class="gps-banner wait" id="gpsBanner">Đang định vị…</div>
+              <div class="map-ctl">
+                <button id="mapZin" type="button" aria-label="Phóng to">+</button>
+                <button id="mapZout" type="button" aria-label="Thu nhỏ">−</button>
+                <button id="mapLocate" type="button" aria-label="Vị trí của tôi">◎</button>
+              </div>
+              <div class="map-stats">
+                <div><b id="mTime">00:00</b><span>Thời gian</span></div>
+                <div><b id="mPace">-:--</b><span>Nhịp độ /km</span></div>
+                <div><b id="mDist">0,00</b><span>Quãng đường km</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="journey">
+            <button class="btn-primary" id="startBtn" type="button"><span class="bdot"></span><span id="startLabel">Bắt đầu hành trình</span></button>
+            <button class="btn-ghost" id="simBtn" type="button">▶ Mô phỏng lộ trình</button>
+            <div class="gps-status" id="gpsStatus"></div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><div class="k">Quãng đường</div><div class="v"><span id="stKm">—</span> <span class="u">km</span></div></div>
+            <div class="stat"><div class="k">Leo tích lũy</div><div class="v"><span id="stLeo">—</span> <span class="u">m</span></div></div>
+            <div class="stat"><div class="k" id="stCaoLabel">Điểm cao nhất</div><div class="v"><span id="stDinh">—</span> <span class="u">m</span></div></div>
+          </div>
+          <div class="src">
+            <span><b id="srcTen">—</b> · <span id="srcViTri">—</span></span>
+            <span id="srcGps">—</span>
+          </div>
+
+          <div class="profile" id="profileBox">
+            <div class="lblrow"><span>Mặt cắt độ cao</span><span id="profMax">—</span></div>
+            <svg id="profileSvg" viewBox="0 0 340 78" aria-label="Biểu đồ mặt cắt độ cao của tuyến"></svg>
+          </div>
+
+          <div class="meta-row" id="metaRow"></div>
+
+          <div class="pt-strip" id="ptStrip">
+            <div class="lbl">Điểm trên tuyến</div>
+            <div class="pt-scroll" id="ptScroll"></div>
+          </div>
+
+          <button class="link-row" id="openLogBtn" type="button">
+            <span class="lr-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 5h12a2.5 2.5 0 0 1 0 5H6a2.5 2.5 0 0 1 0-5ZM6 14h12a2.5 2.5 0 0 1 0 5H6a2.5 2.5 0 0 1 0-5Z"/></svg></span>
+            <span class="lr-txt"><b>Nhật ký đã đi</b><small id="logCount">Xem lại các mốc hành trình</small></span>
+            <span class="lr-chev" aria-hidden="true">›</span>
+          </button>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="homebar" aria-hidden="true"></div>
+
+    <!-- overlay nhật ký -->
+    <div class="overlay" id="logOverlay" hidden>
+      <div class="ov-backdrop" id="ovBackdrop"></div>
+      <div class="ov-card" role="dialog" aria-modal="true" aria-labelledby="ovTitle">
+        <div class="ov-head">
+          <div style="flex:1"><h2 id="ovTitle">Nhật ký leo</h2><div class="ov-sub" id="ovSub"></div></div>
+          <button class="ov-close" id="ovClose" aria-label="Đóng">×</button>
+        </div>
+        <div class="ov-body"><div class="log" id="logList"></div></div>
+      </div>
+    </div>
+
+    <!-- overlay admin -->
+    <div class="overlay" id="adminOverlay" hidden>
+      <div class="ov-backdrop" id="adBackdrop"></div>
+      <div class="ov-card" role="dialog" aria-modal="true" aria-labelledby="adTitle">
+        <div class="ov-head">
+          <div style="flex:1"><h2 id="adTitle">Admin</h2><div class="ov-sub">Công cụ quản trị dữ liệu tuyến</div></div>
+          <button class="ov-close" id="adClose" aria-label="Đóng">×</button>
+        </div>
+        <div class="ov-body">
+          <div class="ad-block">
+            <div class="ad-lbl">Nạp file GPX / KML vào cung</div>
+            <select id="adminCung" class="ad-select" aria-label="Chọn cung để nạp"></select>
+            <label class="btn-ghost" style="display:block;text-align:center;margin-top:8px;cursor:pointer">Chọn file GPX / KML<input type="file" id="fileInput" accept=".gpx,.kml,.xml" hidden></label>
+            <div class="ad-note" id="adminStatus">Track nạp vào sẽ thay tuyến minh họa, tự tính lại km / leo / đỉnh và sinh lại điểm mốc từ GPX.</div>
+          </div>
+          <div class="ad-block">
+            <div class="ad-lbl">Lớp bản đồ OSM offline (khi deploy)</div>
+            <div class="ad-note">Cấu hình sẵn tại <code>MountainTracker.cauHinh</code> (osmURL, osmCache). Bản chạy trong artifact bị CSP chặn tile ngoài nên tạm tắt; bật khi deploy app riêng.</div>
+          </div>
+          <div class="ad-block">
+            <div class="ad-lbl">Gắn ảnh cho điểm</div>
+            <div class="ad-note">Console: <code>MountainTracker.ganAnh('cung','id-điểm',{anh:'data:…'})</code> · xem id điểm bằng <code>MountainTracker.dsDiem()</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- sheet chi tiết điểm -->
+    <div class="sheet" id="sheet" hidden>
+      <div class="sheet-backdrop" id="sheetBackdrop"></div>
+      <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+        <button class="sheet-close" id="sheetClose" aria-label="Đóng">×</button>
+        <div class="sheet-photo empty" id="sheetPhoto"></div>
+        <div class="sheet-body">
+          <span class="sheet-type" id="sheetType"></span>
+          <h3 id="sheetTitle"></h3>
+          <p id="sheetDesc"></p>
+          <dl class="sheet-meta" id="sheetMeta"></dl>
+          <button class="sheet-link" id="sheetLogBtn" type="button">Xem nhật ký cung này ›</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   ROUTE TRACKER — OLED đen, 2 trang dẫn nhau (Home ↔ Diagram)
+   Địa hình: y = cao·exp(-d²/rong) (kế thừa gói zip) → contour.
+   Camera orbit: yaw (rot) + pitch, quán tính, zoom 1–4×.
+
+   Hành trình chuẩn hóa theo web (18/07/2026):
+     Fansipan Trạm Tôn 1.900→2.200→2.800→3.147 m
+     Lảo Thẩn Phìn Hồ lán A Hòa 2.400 m, 16 km, đỉnh 2.862 m
+     Sa Mu U Bò Háng Đồng rừng rêu, đỉnh 2.756 m
+     Tú Làn: hang Chuột→Hung Ton→Tú Làn→Kim→Ken
+     Sơn Đoòng (Oxalis 4N3Đ): Bản Đoòng→Hang Én→tụt dây 80 m→
+       Bàn tay Chó→Hố sụt 1→Vườn Edam→Bức tường VN→ra Đường 20
+   Tọa độ đỉnh/khu vực = giá trị thật (Sơn Đoòng, Sa Mu, Tú Làn ≈);
+   VẾT tuyến là minh họa tới khi có GPX / ghi hành trình.
+
+   API: napTrack napGPX napKML ganAnh themCung chonCung
+        moTrang('home'|'route') moNhatKy dsDiem dsCung cungHienTai
+   ============================================================ */
+(function(){
+  'use strict';
+
+  const CUNG = {
+    fansipan: {
+      id:'fansipan', ten:'Fansipan', viTri:'Sa Pa, Lào Cai', loai:'nui',
+      gps:{lat:22.30333, lon:103.77500}, gpsApprox:false, tuyenThat:false,
+      dinh:3147, caoLabel:'Đỉnh', km:11.2, leo:1243,
+      doKho:'7/10', thoiGian:'2N1Đ', mua:'T10–T4',
+      diaHinh:{cao:3.5, rong:8, vai:.08},
+      trail:['xuatphat','trai-1','trai-2','dinh'],
+      pins:[
+        {id:'xuatphat', x:-3.7, z:2.3, len:34, kind:'letter', ch:'S', tt:'Trạm Tôn (1.900 m)', mt:'Điểm xuất phát tuyến Trạm Tôn, cạnh Vườn quốc gia Hoàng Liên.'},
+        {id:'trai-1', x:-2.5, z:1.4, len:48, kind:'tent', tt:'Nghỉ trưa 2.200 m', mt:'Điểm nghỉ & ăn trưa ngày 1, giữa rừng trúc.'},
+        {id:'song-1', x:-3.0, z:0.4, len:50, kind:'signal', tt:'Điểm bắt sóng', mt:'Viettel 4G ổn định — gọi được về báo an toàn.'},
+        {id:'trai-2', x:-1.3, z:0.65,len:46, kind:'tent', tt:'Trại đêm 2.800 m', mt:'Hạ trại nghỉ đêm, gần bãi đá trước đoạn dốc cuối.'},
+        {id:'cotco', x:-2.0, z:-0.7, len:44, kind:'flag', tt:'Cột mốc 2.900 m', mt:'Mốc định hướng trên sống núi.'},
+        {id:'chot', x:1.0, z:-0.9, len:42, kind:'hand', tt:'Chốt ngắm cảnh', mt:'Điểm dừng ngắm Sa Pa & thung lũng Mường Hoa.'},
+        {id:'dinh', x:0, z:0, len:30, kind:'letter', ch:'F', tt:'Đỉnh Fansipan', mt:'Nóc nhà Đông Dương, chóp inox 3.147 m.'},
+        {id:'song-2', x:1.9, z:0.7, len:48, kind:'signal', tt:'Điểm bắt sóng 2', mt:'Sóng chập chờn, chỉ nhắn tin được.'},
+        {id:'huongdong', x:3.7, z:-0.4, len:34, kind:'letter', ch:'E', tt:'Hướng Đông', mt:'Về phía thị trấn Sa Pa.'}
+      ],
+      log:[
+        {kind:'start', ten:'Bắt đầu leo', luc:'17.06.24 lúc 9:00',
+         nhom:[['LN','#B0765A'],['TH','#7E93AC'],['QA','#A98F5E'],['MD','#8B7BA6'],['VK','#6FA08A']],
+         fields:[{n:'Nhóm', v:'6 người', them:'Xem tất cả'},{n:'HDV', v:'Trần A Páo'},{n:'Xuất phát', v:'Trạm Tôn, 1.900 m'},{n:'Giấy phép', v:'SPA-2406-VN', link:true},{n:'Kết thúc', v:'18.06.24'},{n:'Trạng thái', v:'Đã duyệt', trangThai:true}]},
+        {kind:'camp', ten:'Nghỉ trưa 2.200 m', luc:'17.06.24 lúc 12:00', fields:[{n:'Độ cao', v:'2.200 m'},{n:'Vị trí', v:'Rừng trúc'}]},
+        {kind:'camp', ten:'Trại đêm 2.800 m', luc:'17.06.24 lúc 17:00', fields:[{n:'Độ cao', v:'2.800 m'},{n:'Vị trí', v:'Bãi đá'}]},
+        {kind:'summit', ten:'Chạm đỉnh', luc:'18.06.24 lúc 7:10', fields:[{n:'Độ cao', v:'3.147 m'},{n:'Xác thực', v:'SRTM ±10 m'}]}
+      ]
+    },
+    samu: {
+      id:'samu', ten:'Sa Mu U Bò', viTri:'Bắc Yên, Sơn La (Tà Xùa)', loai:'nui',
+      gps:{lat:21.2800, lon:104.4300}, gpsApprox:true, tuyenThat:false,
+      dinh:2756, caoLabel:'Đỉnh', km:13.0, leo:1500,
+      doKho:'6/10', thoiGian:'2N1Đ', mua:'T11–T3',
+      diaHinh:{cao:3.1, rong:9, vai:.13},
+      trail:['xuatphat','suoi','trai-1','dinh'],
+      pins:[
+        {id:'xuatphat', x:-3.9, z:2.0, len:34, kind:'letter', ch:'S', tt:'Bản Chống Tra', mt:'Điểm gửi xe & bắt đầu leo từ xã Háng Đồng.'},
+        {id:'suoi', x:-2.6, z:0.9, len:46, kind:'flag', loaiTxt:'Suối', tt:'Suối & thác', mt:'Đoạn men theo suối, thác nước giữa rừng nguyên sinh.'},
+        {id:'trai-1', x:-1.4, z:0.4, len:48, kind:'tent', tt:'Trại rừng rêu 2.100 m', mt:'Cắm trại giữa rừng rêu, cây cổ thụ vài người ôm.'},
+        {id:'song-1', x:-2.2, z:-0.9, len:50, kind:'signal', tt:'Điểm bắt sóng', mt:'Chỉ có sóng ở đoạn trống cây.'},
+        {id:'cayco', x:1.0, z:-1.0, len:46, kind:'flag', tt:'Cây thần kỳ', mt:'Cây cổ thụ "có 1-0-2" trứ danh trên đường lên đỉnh.'},
+        {id:'chot', x:0.9, z:0.9, len:42, kind:'hand', tt:'Chốt kiểm tra', mt:'Điểm nghỉ trước dốc dài cuối cùng.'},
+        {id:'dinh', x:0, z:0, len:30, kind:'letter', ch:'F', tt:'Đỉnh Sa Mu U Bò', mt:'2.756 m — săn mây, đỗ quyên hồng ~2.700 m.'}
+      ],
+      log:[
+        {kind:'start', ten:'Bắt đầu leo', luc:'22.11.24 lúc 7:00',
+         nhom:[['HP','#B0765A'],['TL','#7E93AC'],['NM','#A98F5E'],['DT','#8B7BA6']],
+         fields:[{n:'Nhóm', v:'5 người', them:'Xem tất cả'},{n:'HDV', v:'Mùa A Sềnh'},{n:'Xuất phát', v:'Háng Đồng'},{n:'Trạng thái', v:'Đã duyệt', trangThai:true}]},
+        {kind:'camp', ten:'Trại rừng rêu', luc:'22.11.24 lúc 17:00', fields:[{n:'Độ cao', v:'2.100 m'},{n:'Vị trí', v:'Rừng rêu nguyên sinh'}]},
+        {kind:'summit', ten:'Chạm đỉnh', luc:'23.11.24 lúc 9:30', fields:[{n:'Độ cao', v:'2.756 m'},{n:'Xác thực', v:'Gần đúng — chờ GPS'}]}
+      ]
+    },
+    laothan: {
+      id:'laothan', ten:'Lảo Thẩn', viTri:'Y Tý, Bát Xát, Lào Cai', loai:'nui',
+      gps:{lat:22.61042, lon:103.686535}, gpsApprox:false, tuyenThat:false,
+      dinh:2862, caoLabel:'Đỉnh', km:16.0, leo:1150,
+      doKho:'4/10', thoiGian:'2N1Đ', mua:'T9–T4',
+      diaHinh:{cao:3.3, rong:7, vai:.05},
+      trail:['xuatphat','lan','dinh'],
+      pins:[
+        {id:'xuatphat', x:-3.8, z:2.2, len:34, kind:'letter', ch:'S', tt:'Thôn Phìn Hồ', mt:'Điểm xuất phát tuyến Lảo Thẩn, xã Y Tý.'},
+        {id:'cauca', x:-2.7, z:0.6, len:48, kind:'flag', loaiTxt:'Mỏm đá', tt:'Mỏm đá câu cá 2.400 m', mt:'Mỏm đá nhô ra biển mây — điểm check-in nổi tiếng.'},
+        {id:'lan', x:-1.5, z:0.8, len:46, kind:'tent', tt:'Lán A Hòa 2.400 m', mt:'Lán nghỉ duy nhất, cách đỉnh ~1 giờ leo.'},
+        {id:'song-1', x:1.2, z:-1.2, len:50, kind:'signal', tt:'Điểm bắt sóng', mt:'Bắt được sóng nhìn về thung lũng Y Tý.'},
+        {id:'dinh', x:0, z:0, len:30, kind:'letter', ch:'F', tt:'Đỉnh Lảo Thẩn', mt:'Nóc nhà Y Tý 2.862 m — biển mây bình minh.'}
+      ],
+      log:[
+        {kind:'start', ten:'Bắt đầu leo', luc:'14.12.24 lúc 8:30',
+         nhom:[['PA','#B0765A'],['KO','#7E93AC'],['BN','#A98F5E']],
+         fields:[{n:'Nhóm', v:'4 người', them:'Xem tất cả'},{n:'HDV', v:'Ly Xá Xuy'},{n:'Xuất phát', v:'Phìn Hồ'},{n:'Trạng thái', v:'Đã duyệt', trangThai:true}]},
+        {kind:'camp', ten:'Lán A Hòa', luc:'14.12.24 lúc 16:30', fields:[{n:'Độ cao', v:'2.400 m'},{n:'Vị trí', v:'Đồi cỏ'}]},
+        {kind:'summit', ten:'Chạm đỉnh — săn mây', luc:'15.12.24 lúc 5:45', fields:[{n:'Độ cao', v:'2.862 m'},{n:'Ghi chú', v:'Biển mây bình minh'}]}
+      ]
+    },
+    tulan: {
+      id:'tulan', ten:'Tú Làn', viTri:'Tân Hóa, Minh Hóa, Quảng Bình', loai:'hang',
+      gps:{lat:17.77278, lon:106.06083}, gpsApprox:true, tuyenThat:false,
+      dinh:100, caoLabel:'Cao độ làng', km:10.0, leo:300,
+      doKho:'5/10', thoiGian:'2N1Đ', mua:'T2–T8',
+      diaHinh:{cao:1.4, rong:11, vai:.2},
+      trail:['xuatphat','hang-chuot','hang-hungton','trai-1','hang-tulan','hang-kim','hang-ken'],
+      pins:[
+        {id:'xuatphat', x:-3.9, z:2.0, h:.18, len:34, kind:'letter', ch:'S', tt:'Làng Tân Hóa', mt:'Điểm tập kết — "Làng du lịch tốt nhất thế giới".'},
+        {id:'hang-chuot', x:-2.4, z:1.1, h:-.16, ngam:true, len:44, kind:'hand', loaiTxt:'Hang', tt:'Hang Chuột', mt:'Hang KHÔ ~300 m — đi bộ xuyên hang, không bơi.'},
+        {id:'hang-hungton', x:-1.2, z:0.3, h:-.2, ngam:true, len:46, kind:'hand', loaiTxt:'Hang', tt:'Hang Hung Ton', mt:'Xuống thang 15 m có đai an toàn, BƠI sông ngầm ra hồ nước xanh.'},
+        {id:'trai-1', x:-0.4, z:-1.1, h:.15, len:44, kind:'tent', tt:'Trại bên suối', mt:'Trên mặt đất, cạnh thác — giữa thung lũng đá vôi Tú Làn.'},
+        {id:'hang-tulan', x:0, z:-0.4, h:-.18, ngam:true, len:40, kind:'hand', loaiTxt:'Hang', tt:'Hang Tú Làn', mt:'Hang ƯỚT — bơi sông ngầm, thạch nhũ đa sắc.'},
+        {id:'song-1', x:1.6, z:-1.1, len:48, kind:'signal', tt:'Điểm bắt sóng', mt:'Sóng yếu — chủ yếu mất liên lạc trong hang.'},
+        {id:'hang-kim', x:1.3, z:0.2, h:-.2, ngam:true, len:42, kind:'hand', loaiTxt:'Hang', tt:'Hang Kim', mt:'Hang chủ yếu KHÔ — thạch nhũ, thác nước và bãi cát ngầm.'},
+        {id:'hang-ken', x:2.3, z:1.4, h:-.14, ngam:true, len:30, kind:'letter', ch:'F', tt:'Hang Ken', mt:'Điểm cuối — hang ƯỚT, bơi qua hồ nước trong hang.'}
+      ],
+      log:[
+        {kind:'start', ten:'Bắt đầu trek', luc:'08.03.25 lúc 8:30',
+         nhom:[['VT','#B0765A'],['HG','#7E93AC'],['NL','#A98F5E'],['TB','#8B7BA6'],['CM','#6FA08A']],
+         fields:[{n:'Nhóm', v:'8 người', them:'Xem tất cả'},{n:'HDV', v:'Đội Oxalis'},{n:'Xuất phát', v:'Tân Hóa'},{n:'Trạng thái', v:'Đã duyệt', trangThai:true}]},
+        {kind:'diem', ten:'Hang Chuột & Hung Ton', luc:'08.03.25 lúc 11:20', fields:[{n:'Loại', v:'Hang khô + hồ nước'}]},
+        {kind:'camp', ten:'Trại bên suối', luc:'08.03.25 lúc 16:30', fields:[{n:'Tên', v:'Trại Tú Làn'},{n:'Vị trí', v:'Thung lũng đá vôi'}]},
+        {kind:'diem', ten:'Hang Tú Làn → Kim → Ken', luc:'09.03.25 lúc 10:05', fields:[{n:'Hoạt động', v:'Bơi qua sông ngầm'}]}
+      ]
+    },
+    sondoong: {
+      /* Đặc tả theo agent kiểm chứng web 19/07/2026 (Oxalis 4N3Đ):
+         tuyến chạy NGẦM từ Hang Én → tụt 80 m → 2 hố sụt → leo LÊN
+         Bức tường VN 90 m → ra cửa sau, lên đường Hồ Chí Minh. */
+      id:'sondoong', ten:'Sơn Đoòng', viTri:'Phong Nha–Kẻ Bàng, Quảng Bình', loai:'hang',
+      gps:{lat:17.4569, lon:106.2875}, gpsApprox:true, tuyenThat:false,
+      dinh:200, caoLabel:'Trần hang', km:25.0, leo:0,
+      doKho:'8/10', thoiGian:'4N3Đ', mua:'T1–T8',
+      diaHinh:{cao:2.4, rong:8, vai:.15},
+      trail:['xuatphat','ban-doong','hang-en','cua-hang','hand-of-dog','ho-sut-1','vuon-edam','passchendaele','tuong-vn','loi-ra'],
+      gieng:[{x:0.0, z:-0.55, r:.42, day:-.55},{x:0.9, z:-0.25, r:.48, day:-.5}],
+      pins:[
+        {id:'xuatphat', x:-4.3, z:1.9, h:.5, len:34, kind:'letter', ch:'S', tt:'Km 35 Đường 20', mt:'Điểm cao nhất đầu tuyến — trek dốc xuống rừng ~1 giờ.'},
+        {id:'ban-doong', x:-3.5, z:1.35, h:.06, len:42, kind:'hand', loaiTxt:'Bản', tt:'Bản Đoòng', mt:'Thung lũng — bản người Bru–Vân Kiều. Mất sóng hoàn toàn từ đây.'},
+        {id:'hang-en', x:-2.55, z:1.0, h:-.35, ngam:true, len:46, kind:'tent', tt:'Trại Hang Én (Đêm 1)', mt:'Ngủ trên bãi cát TRONG hang lớn thứ 3 thế giới — hang xuyên: vào cửa trước, sáng ra cửa sau.'},
+        {id:'cua-hang', x:-1.55, z:0.45, h:.02, len:44, kind:'flag', loaiTxt:'Cửa hang', tt:'Cửa Sơn Đoòng', mt:'Cửa hẹp — tụt dây 80 m XUỐNG lòng hang lớn nhất thế giới.'},
+        {id:'hand-of-dog', x:-0.75, z:-0.15, h:-.5, ngam:true, len:40, kind:'hand', loaiTxt:'Thạch nhũ', tt:'Bàn tay Chó', mt:'Măng đá khổng lồ trong bóng tối — trần hang đoạn này tới ~200 m.'},
+        {id:'ho-sut-1', x:0.0, z:-0.55, h:-.55, len:46, kind:'tent', loaiTxt:'Hố sụt', tt:'Trại Hố sụt 1 (Đêm 2)', mt:'"Watch out for Dinosaurs" — giếng trời sập trần, nắng rọi xuống lòng hang.'},
+        {id:'vuon-edam', x:0.9, z:-0.25, h:-.5, len:44, kind:'tent', loaiTxt:'Hố sụt', tt:'Trại Vườn Edam (Đêm 3)', mt:'Rừng nguyên sinh mọc trong lòng hang dưới hố sụt 2 — trại đêm cuối.'},
+        {id:'passchendaele', x:1.55, z:0.15, h:-.55, ngam:true, len:38, kind:'flag', loaiTxt:'Đoạn tối', tt:'Passchendaele', mt:'~400 m tối hoàn toàn, bùn và hồ ngầm mùa nước — dẫn tới chân Bức tường.'},
+        {id:'tuong-vn', x:2.05, z:0.6, h:-.4, ngam:true, len:42, kind:'flag', tt:'Bức tường Việt Nam', mt:'Vách calcite 90 m — leo LÊN từ đáy hang bằng thang thép 18 m + dây.'},
+        {id:'loi-ra', x:2.75, z:1.35, h:.42, len:30, kind:'letter', ch:'F', tt:'Lối ra — đường Hồ Chí Minh', mt:'Ra cửa sau ~500 m rồi leo dốc đá lên đường Hồ Chí Minh nhánh Tây.'}
+      ],
+      log:[
+        {kind:'start', ten:'Bắt đầu thám hiểm', luc:'12.02.25 lúc 8:00',
+         nhom:[['QH','#B0765A'],['MT','#7E93AC'],['DL','#A98F5E'],['PN','#8B7BA6'],['KV','#6FA08A']],
+         fields:[{n:'Nhóm', v:'10 khách + 25 porter', them:'Xem tất cả'},{n:'Đơn vị', v:'Oxalis Adventure'},{n:'Xuất phát', v:'Km 35 Đường 20'},{n:'Giới hạn', v:'1.000 khách/năm'},{n:'Thời gian', v:'4N3Đ'},{n:'Trạng thái', v:'Đã duyệt', trangThai:true}]},
+        {kind:'camp', ten:'Đêm 1 — Trại Hang Én', luc:'12.02.25 lúc 16:30', fields:[{n:'Vị trí', v:'Bãi cát TRONG hang'},{n:'Ghi chú', v:'Hang lớn thứ 3 thế giới'}]},
+        {kind:'diem', ten:'Tụt dây vào Sơn Đoòng', luc:'13.02.25 lúc 13:00', fields:[{n:'Độ sâu', v:'80 m dây'},{n:'An toàn', v:'Guide + dây đôi'}]},
+        {kind:'camp', ten:'Đêm 2 — Hố sụt 1', luc:'13.02.25 lúc 17:30', fields:[{n:'Vị trí', v:'"Watch out for Dinosaurs"'}]},
+        {kind:'camp', ten:'Đêm 3 — mép Vườn Edam', luc:'14.02.25 lúc 17:00', fields:[{n:'Vị trí', v:'Rừng trong lòng hang'},{n:'Ghi chú', v:'Hố sụt 2 — giếng trời'}]},
+        {kind:'diem', ten:'Vượt Bức tường Việt Nam', luc:'15.02.25 lúc 9:00', fields:[{n:'Độ cao', v:'Leo LÊN 90 m'},{n:'Thiết bị', v:'Thang thép 18 m + dây'}]},
+        {kind:'diem', ten:'Ra cửa sau — lên đường HCM', luc:'15.02.25 lúc 11:30', fields:[{n:'Đoạn cuối', v:'500 m + dốc đá'}]}
+      ]
+    },
+    custom: {
+      id:'custom', ten:'Cung của tôi', chipLabel:'＋ Tự đi', viTri:'Nhật ký GPS của bạn', loai:'nui',
+      gps:{lat:0, lon:0}, gpsApprox:false, tuyenThat:false, custom:true,
+      dinh:0, caoLabel:'Điểm cao nhất', km:0, leo:0,
+      diaHinh:{cao:3.0, rong:9, vai:.1},
+      trail:[], pins:[], log:[]
+    }
+  };
+  const THU_TU = ['fansipan','samu','laothan','tulan','sondoong','custom'];
+  Object.values(CUNG).forEach(c => (c.pins||[]).forEach((p,i)=>{ if(!p.id) p.id = p.kind+'-'+i; }));
+
+  /* ---------- cảnh núi ---------- */
+  const svg = document.getElementById('scene');
+  const NS  = 'http://www.w3.org/2000/svg';
+  const CX = 200, CY = 250, S = 30, HOFF = 0.05;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let cungId = THU_TU[0];
+  let rot = 0, pitch = 0.6, tien = 0;
+  let zoom = 1, viewTx = 0, viewTy = 0;
+  let velYaw = 0, velPitch = 0, inertiaRAF = 0;
+  let riseK = 1, switchRAF = 0;                 /* hệ số trồi/hạ của diagram khi chuyển cung */
+  const PITCH_MIN = 0.14, PITCH_MAX = 1.45, HEXAG = 1.7;
+  const clamp = (v,a,b) => v < a ? a : v > b ? b : v;
+
+  const cur = () => CUNG[cungId];
+  const heightAtC = (c,x,z) => c.phang ? 0 : c.diaHinh.cao * Math.exp(-(x*x + z*z) / c.diaHinh.rong);
+  const heightAt = (x,z) => { const f = fieldH(x, z); return f != null ? f : heightAtC(cur(), x, z); };
+  function wobble(a, h){
+    const {cao, vai} = cur().diaHinh;
+    const e = Math.max(.15, 1.12 - h/(cao*1.03));
+    return e * ( .11*Math.sin(2*a + .8) + .07*Math.sin(3*a + 2.1) + .05*Math.sin(5*a + 4.2) + .028*Math.sin(8*a + 1.3) )
+         + vai * (1 - h/cao) * Math.cos(a - 3.6);
+  }
+  function project(x, z, h){
+    const c = Math.cos(rot), s = Math.sin(rot);
+    const rx = x*c - z*s, rz = x*s + z*c;
+    const sinP = Math.sin(pitch), cosP = Math.cos(pitch);
+    /* cung có GPX tỉ lệ thật (kmPerUnit): KHÔNG phóng đại độ cao; cung minh họa giữ 1.7× */
+    const hx = cur().kmPerUnit ? 1 : HEXAG;
+    return [CX + rx*S, CY + rz*S*sinP - h*riseK*S*hx*cosP];
+  }
+  function el(name, attrs, parent){
+    const n = document.createElementNS(NS, name);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    (parent || svg).appendChild(n);
+    return n;
+  }
+  const gView = el('g', {});
+  const gContour = el('g', {}, gView);
+  const gRoute   = el('g', {}, gView);
+  const gProg    = el('g', {}, gView);
+  const gPins    = el('g', {}, gView);
+  function applyView(){ gView.setAttribute('transform', `translate(${viewTx.toFixed(2)} ${viewTy.toFixed(2)}) scale(${zoom.toFixed(3)})`); document.getElementById('zLvl').textContent = zoom.toFixed(1)+'×'; }
+
+  function buildCompass(){
+    const g = el('g', {}, gContour);
+    const R = 5.7, seg = 120;
+    let d = '';
+    for (let i = 0; i <= seg; i++){ const a = i/seg*2*Math.PI; const p = project(R*Math.cos(a), R*Math.sin(a), 0); d += (i?'L':'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }
+    el('path', {d:d+'Z', fill:'none', stroke:'#8FA9A7', 'stroke-width':1.4, opacity:.8}, g);
+    for (let k = 0; k < 120; k++){
+      const a = k/120*2*Math.PI, big = k%5===0, r2 = R + (big?.42:.24);
+      const p1 = project(R*Math.cos(a), R*Math.sin(a), 0), p2 = project(r2*Math.cos(a), r2*Math.sin(a), 0);
+      el('line', {x1:p1[0], y1:p1[1], x2:p2[0], y2:p2[1], stroke:'#E7ECEA', 'stroke-width':1, opacity: big?.45:.26}, g);
+    }
+    [['B',0,-1],['Đ',1,0],['N',0,1],['T',-1,0]].forEach(([ch,dx,dz])=>{
+      const RL = R + 0.72; const p = project(dx*RL, dz*RL, 0);
+      el('text', {x:p[0], y:p[1], fill:'#E8ECEA', 'font-size':16, 'font-weight':700, 'text-anchor':'middle', 'dominant-baseline':'central'}, g).textContent = ch;
+    });
+  }
+  const GROUND = [4.95, 5.35];
+  function contourPath(h, r0){
+    const pts = [];
+    for (let i = 0; i <= 150; i++){
+      const a = i/150 * 2*Math.PI;
+      const r = r0 * (1 + (h > 0 ? wobble(a,h) : .03*Math.sin(3*a)+.02*Math.sin(7*a+2)));
+      pts.push(project(r*Math.cos(a), r*Math.sin(a), h));
+    }
+    return 'M' + pts.map(p => p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L') + 'Z';
+  }
+  function renderContours(){
+    gContour.innerHTML = '';
+    buildCompass();
+    if (cur().phang){
+      /* lưới khám phá khu vực mới: vòng bán kính km thay cho núi */
+      for (let km = 1; km <= 3; km++){
+        const r = km / KM_MOT_DONVI;
+        let d = '';
+        for (let i = 0; i <= 100; i++){ const a = i/100*2*Math.PI; const p = project(r*Math.cos(a), r*Math.sin(a), 0); d += (i?'L':'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }
+        el('path', {d:d+'Z', fill:'none', stroke:'#3B4145', 'stroke-width':1, 'stroke-dasharray':'3 5'}, gContour);
+        const lp = project(r*0.7071, -r*0.7071, 0);
+        el('text', {x:lp[0], y:lp[1], fill:'#5C6165', 'font-size':9, 'text-anchor':'middle'}, gContour).textContent = km + ' km';
+      }
+      return;
+    }
+    if (fieldSegs && fieldSegs.length){
+      /* đồng mức sinh từ GPX thật — núi bám đúng hành lang track */
+      GROUND.forEach(r0 => el('path', {d:contourPath(0, r0), fill:'none', stroke:'#43494D', 'stroke-width':1, opacity:.8}, gContour));
+      fieldSegs.forEach(l => {
+        let d = '';
+        l.segs.forEach(s => {
+          const p1 = project(s[0], s[1], l.h);
+          const p2 = project(s[2], s[3], l.h);
+          d += 'M' + p1[0].toFixed(1) + ' ' + p1[1].toFixed(1) + 'L' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1);
+        });
+        el('path', {d, fill:'none', stroke:'#5D6368', 'stroke-width':1}, gContour);
+      });
+      return;
+    }
+    const {cao, rong} = cur().diaHinh;
+    GROUND.forEach(r0 => el('path', {d:contourPath(0, r0), fill:'none', stroke:'#43494D', 'stroke-width':1, opacity:.8}, gContour));
+    for (let i = 1; i <= 22; i++){
+      const h = cao * (.05 + .92*Math.pow(i/23, 1.25));
+      const r0 = Math.sqrt(-rong*Math.log(h/cao));
+      el('path', {d:contourPath(h, r0), fill:'none', stroke:'#5D6368', 'stroke-width':1}, gContour);
+    }
+    /* giếng trời (hố sụt): vòng sáng trên bề mặt + trục ánh sáng rọi xuống tuyến ngầm */
+    (cur().gieng || []).forEach(gg => {
+      const hMat = heightAt(gg.x, gg.z);
+      const top = project(gg.x, gg.z, hMat);
+      const bot = project(gg.x, gg.z, gg.day != null ? gg.day : 0);
+      el('line', {x1:top[0], y1:top[1], x2:bot[0], y2:bot[1], stroke:'#EAFFE6', 'stroke-width':5, opacity:.12}, gContour);
+      el('line', {x1:top[0], y1:top[1], x2:bot[0], y2:bot[1], stroke:'#EAFFE6', 'stroke-width':1.2, opacity:.3, 'stroke-dasharray':'2 4'}, gContour);
+      [gg.r, gg.r*0.55].forEach(rr => {
+        let d = '';
+        for (let i = 0; i <= 40; i++){ const a = i/40*2*Math.PI; const p = project(gg.x + rr*Math.cos(a), gg.z + rr*Math.sin(a), hMat); d += (i?'L':'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }
+        el('path', {d:d+'Z', fill:'none', stroke:'#C9E265', 'stroke-width':1.1, opacity:.5}, gContour);
+      });
+    });
+  }
+
+  function trailWaypoints(c){
+    if (c.track && c.track.length >= 2) return c.track;
+    if (c.trail && c.trail.length){
+      return c.trail.map(id => {
+        const p = (c.pins||[]).find(pp => pp.id === id);
+        if (!p) return null;
+        return (typeof p.h === 'number') ? [p.x, p.z, p.h] : [p.x, p.z];
+      }).filter(Boolean);
+    }
+    return [];
+  }
+  function buildGeoFor(c){
+    const WAY = trailWaypoints(c);
+    const geo = [];
+    if (WAY.length < 2) return {geo, cum:[], total:0};
+    for (let s = 0; s < WAY.length-1; s++){
+      const p0 = WAY[Math.max(0,s-1)], p1 = WAY[s], p2 = WAY[s+1], p3 = WAY[Math.min(WAY.length-1,s+2)];
+      const hasE = p1.length > 2 || p2.length > 2;
+      for (let k = 0; k < 8; k++){
+        const t = k/8, t2 = t*t, t3 = t2*t;
+        const x = .5*((2*p1[0]) + (-p0[0]+p2[0])*t + (2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2 + (-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3);
+        const z = .5*((2*p1[1]) + (-p0[1]+p2[1])*t + (2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2 + (-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3);
+        const h = hasE ? ((p1[2]||0)*(1-t) + (p2[2]||0)*t) : heightAtC(c, x, z);
+        geo.push({x, z, h});
+      }
+    }
+    const last = WAY[WAY.length-1];
+    geo.push({x:last[0], z:last[1], h:last.length>2 ? last[2] : heightAtC(c, last[0], last[1])});
+    const cum = [0];
+    for (let i = 1; i < geo.length; i++){ const a = geo[i-1], b = geo[i]; cum.push(cum[i-1] + Math.hypot(b.x-a.x, b.z-a.z)); }
+    return {geo, cum, total: cum[cum.length-1] || 0};
+  }
+  let routeGeo = [], cumLen = [], totalLen = 0;
+  let field = null, fieldSegs = null;   /* địa hình sinh từ GPX thật */
+
+  /* Nội suy IDW quanh hành lang track + rơi dần về nền → heightfield,
+     rồi marching squares trích đường đồng mức (tọa độ thế giới, tính 1 lần/cung). */
+  function buildField(){
+    field = null; fieldSegs = null;
+    const c = cur();
+    if (!(c.track && c.track.length >= 2) || routeGeo.length < 2) return;
+    const src = [];
+    for (let i = 0; i < routeGeo.length; i += 3) src.push(routeGeo[i]);
+    src.push(routeGeo[routeGeo.length-1]);
+    const N = 40, EXT = 5.4, cell = 2*EXT/(N-1);
+    const H = []; let hMax = 0;
+    for (let iz = 0; iz < N; iz++){
+      const row = []; const z = -EXT + iz*cell;
+      for (let ix = 0; ix < N; ix++){
+        const x = -EXT + ix*cell;
+        let sw = 0, swh = 0, dMin = Infinity;
+        for (let k = 0; k < src.length; k++){
+          const dx = x - src[k].x, dz = z - src[k].z;
+          const d2 = dx*dx + dz*dz;
+          if (d2 < dMin) dMin = d2;
+          const w = 1/(d2 + .06);
+          sw += w; swh += w*(src[k].h > 0 ? src[k].h : 0);
+        }
+        let h = (swh/sw) * Math.exp(-dMin/1.4);
+        if (h < 0) h = 0;
+        row.push(h);
+        if (h > hMax) hMax = h;
+      }
+      H.push(row);
+    }
+    if (hMax < .1) return;
+    field = {H, N, EXT, cell, hMax};
+    fieldSegs = [];
+    const L = 14;
+    for (let li = 1; li <= L; li++){
+      const lv = hMax * li/(L+1);
+      const segs = [];
+      for (let iz = 0; iz < N-1; iz++){
+        for (let ix = 0; ix < N-1; ix++){
+          const x0 = -EXT + ix*cell, z0 = -EXT + iz*cell;
+          const a = H[iz][ix], b = H[iz][ix+1], cc = H[iz+1][ix+1], dd = H[iz+1][ix];
+          let idx = 0;
+          if (a > lv) idx |= 1;
+          if (b > lv) idx |= 2;
+          if (cc > lv) idx |= 4;
+          if (dd > lv) idx |= 8;
+          if (idx === 0 || idx === 15) continue;
+          const lerp = (p, q) => (lv - p) / (q - p);
+          const eT = [x0 + cell*lerp(a,b), z0];
+          const eR = [x0 + cell, z0 + cell*lerp(b,cc)];
+          const eB = [x0 + cell*lerp(dd,cc), z0 + cell];
+          const eL = [x0, z0 + cell*lerp(a,dd)];
+          const put = (p,q) => segs.push([p[0],p[1],q[0],q[1]]);
+          switch(idx){
+            case 1: case 14: put(eL,eT); break;
+            case 2: case 13: put(eT,eR); break;
+            case 3: case 12: put(eL,eR); break;
+            case 4: case 11: put(eR,eB); break;
+            case 6: case 9:  put(eT,eB); break;
+            case 7: case 8:  put(eL,eB); break;
+            case 5:  put(eL,eT); put(eR,eB); break;
+            case 10: put(eT,eR); put(eL,eB); break;
+          }
+        }
+      }
+      if (segs.length) fieldSegs.push({h:lv, segs});
+    }
+  }
+  function fieldH(x, z){
+    if (!field) return null;
+    const {H, N, EXT, cell} = field;
+    const fx = (x+EXT)/cell, fz = (z+EXT)/cell;
+    const ix = Math.floor(fx), iz = Math.floor(fz);
+    if (ix < 0 || iz < 0 || ix >= N-1 || iz >= N-1) return 0;
+    const tx = fx-ix, tz = fz-iz;
+    return H[iz][ix]*(1-tx)*(1-tz) + H[iz][ix+1]*tx*(1-tz) + H[iz+1][ix]*(1-tx)*tz + H[iz+1][ix+1]*tx*tz;
+  }
+  function buildRouteGeo(){ const r = buildGeoFor(cur()); routeGeo = r.geo; cumLen = r.cum; totalLen = r.total; buildField(); }
+
+  function renderRoute(){
+    gRoute.innerHTML = '';
+    if (routeGeo.length < 2) return;
+    /* tách tuyến thành các đoạn TRÊN mặt đất / NGẦM trong hang (h < -0.03) */
+    const runs = [];
+    let run = {ngam: routeGeo[0].h < -0.03, pts:[routeGeo[0]]};
+    for (let i = 1; i < routeGeo.length; i++){
+      const ngam = routeGeo[i].h < -0.03;
+      run.pts.push(routeGeo[i]);
+      if (ngam !== run.ngam){ runs.push(run); run = {ngam, pts:[routeGeo[i]]}; }
+    }
+    runs.push(run);
+    runs.forEach(r => {
+      if (r.pts.length < 2) return;
+      const proj = r.pts.map(p => project(p.x, p.z, p.h + HOFF));
+      el('path', {d:'M' + proj.map(p => p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L'),
+        class: (!r.ngam && !reduced) ? 'route-dash' : '',
+        stroke: r.ngam ? '#8FD0E8' : '#F2F4F2',
+        'stroke-width': r.ngam ? 2 : 2.1, fill:'none', 'stroke-linecap':'round',
+        'stroke-dasharray': r.ngam ? '1 4.5' : '1 7',
+        opacity: r.ngam ? .8 : 1}, gRoute);
+    });
+  }
+  const progPct = document.getElementById('progPct');
+  function progressPoint(){
+    const target = clamp(tien,0,1) * totalLen;
+    let i = 1; while (i < cumLen.length && cumLen[i] < target) i++;
+    const covered = routeGeo.slice(0, i);
+    let P;
+    if (i < routeGeo.length){
+      const seg = cumLen[i] - cumLen[i-1], f = seg > 0 ? (target - cumLen[i-1]) / seg : 0;
+      const a = routeGeo[i-1], b = routeGeo[i];
+      P = {x:a.x+(b.x-a.x)*f, z:a.z+(b.z-a.z)*f, h:a.h+(b.h-a.h)*f};
+    } else P = routeGeo[routeGeo.length-1];
+    covered.push(P); return {covered, P};
+  }
+  function renderProgress(){
+    gProg.innerHTML = '';
+    progPct.textContent = Math.round(clamp(tien,0,1)*100) + '%';
+    updateProfMarker();
+    if (routeGeo.length < 2 || totalLen <= 0 || tien <= 0) return;
+    const {covered, P} = progressPoint();
+    const proj = covered.map(p => project(p.x, p.z, p.h + HOFF));
+    const d = 'M' + proj.map(p => p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L');
+    el('path', {d, fill:'none', stroke:'var(--glow)', 'stroke-width':3.4, 'stroke-linecap':'round', 'stroke-linejoin':'round', filter:'url(#glow)', opacity:.9}, gProg);
+    el('path', {d, fill:'none', stroke:'#FBFFFE', 'stroke-width':1.7, 'stroke-linecap':'round', 'stroke-linejoin':'round'}, gProg);
+    const head = project(P.x, P.z, P.h + HOFF);
+    el('circle', {cx:head[0], cy:head[1], r:6.5, fill:'var(--go)', filter:'url(#glow)'}, gProg);
+    el('circle', {cx:head[0], cy:head[1], r:3.3, fill:'#fff'}, gProg);
+  }
+
+  const STEM = {tent:'#8FB6C2', signal:'#D4503A', hand:'#A9C25B', letter:'#B9BDBF', flag:'#B9BDBF'};
+  const FILL = {tent:'var(--camp)', signal:'var(--signal)', hand:'var(--go)', letter:'#F2F3F1', flag:'#F2F3F1'};
+  const KIND_COLOR = {tent:'#A9CDD8', signal:'#FF5233', hand:'#C9E265', letter:'#F2F3F1', flag:'#F2F3F1'};
+  const KIND_LABEL = {tent:'Trại nghỉ', signal:'Điểm có sóng', hand:'Chốt kiểm tra', flag:'Cột mốc', letter:'Điểm mốc'};
+  const KIND_TYPE  = {tent:'Trại', signal:'Điểm sóng', hand:'Chốt', flag:'Cột mốc', letter:'Mốc'};
+  function pinTitle(p){ if (p.tt) return p.tt; if (p.kind === 'letter') return p.ch==='S' ? 'Điểm xuất phát' : p.ch==='F' ? 'Đích' : 'Điểm mốc'; return KIND_LABEL[p.kind] || 'Điểm'; }
+  function pinType(p){
+    if (p.loaiTxt) return p.loaiTxt;
+    if (p.kind === 'letter'){ if (p.ch === 'S') return 'Xuất phát'; if (p.ch === 'F') return cur().loai === 'hang' ? 'Điểm cuối' : 'Đỉnh'; return 'Mốc'; }
+    return KIND_TYPE[p.kind] || 'Điểm';
+  }
+  function pinDesc(p){ return p.mt || 'Điểm trên lộ trình.'; }
+  const MINI = {
+    tent:'<svg viewBox="0 0 24 24"><path d="M4 19 12 5l8 14M9.2 19l2.8-5 2.8 5M3 19h18"/></svg>',
+    signal:'<svg viewBox="0 0 24 24" style="stroke:#fff"><circle cx="12" cy="12" r="1.2"/><path d="M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7"/></svg>',
+    hand:'<svg viewBox="0 0 24 24"><path d="M7.5 13V8M10.5 14V4.5M13.5 14V4.5M16.5 14V6.5M7.5 13c0 4.5 2 6.5 4.8 6.5s4.7-2 4.7-5.5"/></svg>',
+    flag:'<svg viewBox="0 0 24 24"><path d="M6 21V4M6 4h11l-2.5 3.5L17 11H6"/></svg>'
+  };
+  function pinIcon(g, p, hx, hy){
+    const ic = el('g', {transform:`translate(${hx} ${hy})`, stroke:'#16282E','stroke-width':1.6,fill:'none','stroke-linecap':'round','stroke-linejoin':'round'}, g);
+    if (p.kind === 'letter'){ el('text',{x:0,y:0,'text-anchor':'middle','dominant-baseline':'central','font-size':12,'font-weight':700,fill:'#121315',stroke:'none'},ic).textContent = p.ch; }
+    else if (p.kind === 'tent'){ el('path',{d:'M-5.5 4.5 0 -4.5 5.5 4.5ZM-2 4.5 0 1l2 3.5'},ic); }
+    else if (p.kind === 'signal'){ ic.setAttribute('stroke','#fff'); el('circle',{cx:0,cy:0,r:1.1,fill:'#fff',stroke:'none'},ic); el('path',{d:'M-3 3a4.2 4.2 0 0 1 0-6M3-3a4.2 4.2 0 0 1 0 6M-5.6 5.6a7.9 7.9 0 0 1 0-11.2M5.6-5.6a7.9 7.9 0 0 1 0 11.2'},ic); }
+    else if (p.kind === 'hand'){ ic.setAttribute('stroke','#2E3D12'); el('path',{d:'M-4.4 1.5V-1M-1.9 2.5V-4.5M.6 2.5V-5.5M3.1 2.5V-4M-4.4 1.5c0 3 1.6 4.5 4 4.5s4.5-1.5 4.5-4.5'},ic); }
+    else if (p.kind === 'flag'){ el('path',{d:'M-2 6V-6'},ic); el('path',{d:'M-2 -6h7.5L3 -3.2l2.5 2.8H-2',fill:'#121315',stroke:'none'},ic); }
+  }
+  function renderPins(){
+    gPins.innerHTML = '';
+    const drawn = (cur().pins || []).map((p, idx) => { const h = (typeof p.h === 'number') ? p.h : heightAt(p.x, p.z); const [gx, gy] = project(p.x, p.z, h); return {p, idx, gx, gy}; }).sort((a,b) => a.gy - b.gy);
+    drawn.forEach(({p, idx, gx, gy}) => {
+      const hy = gy - p.len;
+      const g  = el('g', {class:'pin', tabindex:'0', role:'button', 'data-idx':idx, 'aria-label': pinType(p) + ': ' + pinTitle(p)}, gPins);
+      el('circle',{cx:gx,cy:gy,r:1.7,fill:'#7A7F83'},g);
+      el('line',{x1:gx,y1:gy-2,x2:gx,y2:hy+13, stroke:STEM[p.kind],'stroke-width':1.5,opacity: p.ngam ? .75 : .9, 'stroke-dasharray': p.ngam ? '3 3' : 'none'},g);
+      el('circle',{cx:gx,cy:hy,r:13.5,fill:FILL[p.kind]},g);
+      pinIcon(g, p, gx, hy);
+      const ring = el('circle',{cx:gx,cy:hy,r:17,fill:'none',stroke:'var(--go)','stroke-width':2,opacity:0},g);
+      el('circle',{cx:gx,cy:hy,r:18,fill:'transparent'},g);
+      g.addEventListener('focus', ()=> ring.setAttribute('opacity','1'));
+      g.addEventListener('blur',  ()=> ring.setAttribute('opacity','0'));
+      g.addEventListener('pointerdown', e => e.stopPropagation());
+      g.addEventListener('click', () => openSheet(p));
+      g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openSheet(p); } });
+    });
+  }
+  function renderScene(){ renderContours(); renderRoute(); renderProgress(); renderPins(); applyView(); }
+
+  /* ---------- mặt cắt độ cao ---------- */
+  const profSvg = document.getElementById('profileSvg');
+  let profPts = [], profM1 = null, profM2 = null;
+  function renderProfile(){
+    profSvg.innerHTML = ''; profPts = []; profM1 = profM2 = null;
+    const box = document.getElementById('profileBox');
+    if (routeGeo.length < 2 || totalLen <= 0){ box.style.display = 'none'; return; }
+    box.style.display = '';
+    const c = cur();
+    document.getElementById('profMax').textContent = c.dinh ? (c.dinh.toLocaleString('vi-VN') + ' m') : '—';
+    const hMax = Math.max(.01, ...routeGeo.map(g => g.h));
+    profPts = routeGeo.map((g,i) => [8 + (cumLen[i]/totalLen)*324, 66 - (g.h/hMax)*48]);
+    const line = profPts.map(p => p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L');
+    el('line', {x1:8, y1:66, x2:332, y2:66, stroke:'#26292D', 'stroke-width':1}, profSvg);
+    el('path', {d:'M8 66L' + line + 'L332 66Z', fill:'rgba(201,226,101,.12)', stroke:'none'}, profSvg);
+    el('path', {d:'M' + line, fill:'none', stroke:'var(--go)', 'stroke-width':1.7, 'stroke-linecap':'round', 'stroke-linejoin':'round'}, profSvg);
+    el('circle', {cx:profPts[0][0], cy:profPts[0][1], r:2.6, fill:'#F2F3F1'}, profSvg);
+    el('circle', {cx:profPts[profPts.length-1][0], cy:profPts[profPts.length-1][1], r:2.6, fill:'#F2F3F1'}, profSvg);
+    profM1 = el('circle', {cx:profPts[0][0], cy:profPts[0][1], r:5, fill:'var(--go)', filter:'url(#glow)', opacity:0}, profSvg);
+    profM2 = el('circle', {cx:profPts[0][0], cy:profPts[0][1], r:2, fill:'#fff', opacity:0}, profSvg);
+  }
+  function updateProfMarker(){
+    if (!profM1 || !profPts.length || totalLen <= 0) return;
+    if (tien <= 0){ profM1.setAttribute('opacity','0'); profM2.setAttribute('opacity','0'); return; }
+    const target = clamp(tien,0,1) * totalLen;
+    let i = 1; while (i < cumLen.length && cumLen[i] < target) i++;
+    let x, y;
+    if (i < profPts.length){
+      const seg = cumLen[i] - cumLen[i-1], f = seg > 0 ? (target - cumLen[i-1]) / seg : 0;
+      x = profPts[i-1][0] + (profPts[i][0]-profPts[i-1][0])*f;
+      y = profPts[i-1][1] + (profPts[i][1]-profPts[i-1][1])*f;
+    } else { x = profPts[profPts.length-1][0]; y = profPts[profPts.length-1][1]; }
+    profM1.setAttribute('cx',x); profM1.setAttribute('cy',y); profM1.setAttribute('opacity','1');
+    profM2.setAttribute('cx',x); profM2.setAttribute('cy',y); profM2.setAttribute('opacity','1');
+  }
+
+  /* ---------- nhật ký / dữ liệu / điểm ---------- */
+  const NODE = {
+    start:  {cls:'white', html:'S'},
+    camp:   {cls:'camp',  html:'<svg viewBox="0 0 24 24"><path d="M4 19 12 5l8 14M9.2 19l2.8-5 2.8 5M3 19h18"/></svg>'},
+    signal: {cls:'signal',html:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.2"/><path d="M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg>'},
+    diem:   {cls:'diem',  html:'<svg viewBox="0 0 24 24"><path d="M7.5 13V8M10.5 14V4.5M13.5 14V4.5M16.5 14V6.5M7.5 13c0 4.5 2 6.5 4.8 6.5s4.7-2 4.7-5.5"/></svg>'},
+    summit: {cls:'white', html:'<svg viewBox="0 0 24 24" style="stroke:#121315"><path d="M6 21V4"/><path d="M6 4h11l-2.5 3.5L17 11H6" fill="#121315" stroke="none"/></svg>'}
+  };
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function renderLog(){
+    const box = document.getElementById('logList');
+    box.innerHTML = '';
+    const list = cur().log || [];
+    if (!list.length){ box.innerHTML = '<div class="log-empty">Chưa có nhật ký cho cung này.<br>Bấm "Bắt đầu hành trình" để ghi lại lộ trình của bạn.</div>'; return; }
+    list.forEach(e => {
+      const node = NODE[e.kind] || NODE.start;
+      const twoCol = (e.fields || []).length > 2;
+      let html = `<div class="rail"><span class="node ${node.cls}">${node.html}</span><span class="line"></span></div>`;
+      html += `<div class="entry-body"><div class="entry-title">${esc(e.ten)}</div><div class="entry-time">${esc(e.luc)}</div>`;
+      if (e.nhom) html += `<div class="avatars">` + e.nhom.map(([tt,mau]) => `<span class="av" style="background:${esc(mau)}">${esc(tt)}</span>`).join('') + `</div>`;
+      if (e.fields && e.fields.length){
+        html += `<dl class="panel${twoCol ? ' two' : ''}">` + e.fields.map(f => {
+          let v;
+          if (f.trangThai) v = `<span class="approved">${esc(f.v)}<svg viewBox="0 0 18 12"><path d="M1 6.5 4 9.5 9 2.5"/><path d="M8 6.5l3 3 5-7"/></svg></span>`;
+          else if (f.link)  v = `<a href="#">${esc(f.v)}</a>`;
+          else              v = esc(f.v) + (f.them ? `&nbsp;&nbsp;<a href="#">${esc(f.them)}</a>` : '');
+          return `<dt>${esc(f.n)}</dt><dd>${v}</dd>`;
+        }).join('') + `</dl>`;
+      }
+      html += `</div>`;
+      const div = document.createElement('div'); div.className = 'entry'; div.innerHTML = html; box.appendChild(div);
+    });
+  }
+  const fmt = n => n.toLocaleString('vi-VN');
+  function renderStats(){
+    const c = cur();
+    document.getElementById('stKm').textContent   = c.km ? String(c.km).replace('.', ',') : '—';
+    document.getElementById('stLeo').textContent  = c.leo ? '+' + fmt(c.leo) : '—';
+    document.getElementById('stDinh').textContent = c.dinh ? fmt(c.dinh) : '—';
+    document.getElementById('stCaoLabel').textContent = c.caoLabel || 'Điểm cao nhất';
+    document.getElementById('srcTen').textContent   = c.ten;
+    document.getElementById('srcViTri').textContent = c.viTri;
+    document.getElementById('srcGps').textContent = (c.gps.lat || c.gps.lon) ? ((c.gpsApprox ? '≈ ' : '') + c.gps.lat.toFixed(5) + '° B · ' + c.gps.lon.toFixed(5) + '° Đ') : 'Chưa có GPS';
+    const n = (c.log || []).length;
+    document.getElementById('logCount').textContent = n ? (n + ' mốc đã ghi') : 'Chưa có nhật ký';
+    const meta = document.getElementById('metaRow');
+    meta.innerHTML = '';
+    [['Độ khó', c.doKho], ['Thời gian', c.thoiGian], ['Mùa đẹp', c.mua]].forEach(([k,v]) => {
+      if (!v) return;
+      const s = document.createElement('span'); s.className = 'mchip';
+      s.innerHTML = esc(k) + ' <b>' + esc(v) + '</b>';
+      meta.appendChild(s);
+    });
+  }
+  function renderPtStrip(){
+    const box = document.getElementById('ptScroll');
+    box.innerHTML = '';
+    const pins = cur().pins || [];
+    document.getElementById('ptStrip').style.display = pins.length ? '' : 'none';
+    pins.forEach(p => {
+      const inner = p.kind === 'letter' ? esc(p.ch || '•') : (MINI[p.kind] || '');
+      const b = document.createElement('button');
+      b.className = 'pt-chip'; b.type = 'button';
+      b.innerHTML = `<span class="pt-ic" style="background:${KIND_COLOR[p.kind]||'#ccc'}">${inner}</span><span><b>${esc(pinTitle(p))}</b><small>${esc(pinType(p))}${p.anh?' · có ảnh':''}</small></span>`;
+      b.addEventListener('click', () => openSheet(p));
+      box.appendChild(b);
+    });
+  }
+  function updateDemoTag(){
+    const c = cur();
+    const showDemo = !c.tuyenThat && !c.custom && (c.trail && c.trail.length) && recBadge.hidden;
+    document.getElementById('demoTag').hidden = !showDemo;
+  }
+  function updateCustomUI(){
+    const c = cur();
+    const empty = c.custom && !(c.track && c.track.length >= 2) && !c.khuVuc;
+    document.getElementById('uploadPrompt').hidden = !empty;
+  }
+  function updateRouteHeader(){
+    document.getElementById('routeTitle').textContent = cur().ten;
+    document.getElementById('routeLoc').textContent = cur().viTri;
+  }
+
+  /* ---------- tab tên cung (chữ) + trang Home ---------- */
+  function renderRTabs(){
+    const box = document.getElementById('rtabs');
+    box.innerHTML = '';
+    THU_TU.forEach(id => {
+      const b = document.createElement('button');
+      b.className = 'rtab' + (CUNG[id].custom ? ' custom' : '');
+      b.textContent = CUNG[id].chipLabel || CUNG[id].ten;
+      b.setAttribute('aria-pressed', String(id === cungId));
+      b.addEventListener('click', () => chonCung(id));
+      box.appendChild(b);
+    });
+  }
+  function sparkSvg(c){
+    const {geo} = buildGeoFor(c);
+    const W = 84, H = 30;
+    if (geo.length < 2) return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><line x1="4" y1="${H-6}" x2="${W-4}" y2="${H-6}" stroke="#33383D" stroke-width="1.5" stroke-dasharray="2 4"/></svg>`;
+    const hMax = Math.max(.01, ...geo.map(g => g.h));
+    const step = Math.max(1, Math.floor(geo.length/36));
+    const pts = [];
+    for (let i = 0; i < geo.length; i += step) pts.push([4 + (i/(geo.length-1))*(W-8), (H-5) - (geo[i].h/hMax)*(H-12)]);
+    pts.push([W-4, (H-5) - (geo[geo.length-1].h/hMax)*(H-12)]);
+    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><path d="M${pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L')}" fill="none" stroke="#C9E265" stroke-width="1.6" stroke-linecap="round" opacity=".9"/></svg>`;
+  }
+  function renderHome(){
+    const box = document.getElementById('homeList');
+    box.innerHTML = '';
+    THU_TU.forEach(id => {
+      const c = CUNG[id];
+      const b = document.createElement('button');
+      b.className = 'hcard' + (c.custom ? ' custom' : '');
+      b.type = 'button';
+      if (c.custom){
+        b.innerHTML = `<span class="hc-plus" aria-hidden="true">＋</span><span class="hc-info"><b>Tự đi — tuyến của bạn</b><small>Tải file GPX/KML hoặc ghi GPS trực tiếp</small></span><span class="hc-chev" aria-hidden="true">›</span>`;
+      } else {
+        const capValue = c.dinh ? fmt(c.dinh) + ' m' : '—';
+        b.innerHTML =
+          `<span class="hc-info"><b>${esc(c.ten)}</b><small>${esc(c.viTri)}</small>` +
+          `<span class="hc-meta"><span>${esc(c.caoLabel||'Đỉnh')} <b>${capValue}</b></span><span><b>${String(c.km).replace('.',',')}</b> km</span>${c.doKho?`<span>Độ khó <b>${esc(c.doKho)}</b></span>`:''}</span></span>` +
+          `<span class="hc-spark" aria-hidden="true">${sparkSvg(c)}<span class="hc-chev">›</span></span>`;
+      }
+      b.addEventListener('click', () => { chonCung(id, true); moTrang('route'); });
+      box.appendChild(b);
+    });
+  }
+
+  /* ---------- điều hướng trang ---------- */
+  function moTrang(p){
+    document.querySelectorAll('.page').forEach(s => s.classList.toggle('active', s.dataset.page === p));
+    document.getElementById('app').scrollTop = 0;
+    if (p === 'route') syncView();
+  }
+  document.getElementById('backBtn').addEventListener('click', () => moTrang('home'));
+
+  function resetView(){ zoom = 1; viewTx = 0; viewTy = 0; rot = 0; pitch = 0.6; velYaw = 0; velPitch = 0; if (inertiaRAF){ cancelAnimationFrame(inertiaRAF); inertiaRAF = 0; } }
+  function renderAll(){ buildRouteGeo(); renderScene(); renderStats(); renderPtStrip(); renderProfile(); renderRTabs(); renderHome(); updateDemoTag(); updateCustomUI(); updateRouteHeader(); }
+  /* ---- animation chuyển cung: núi cũ hạ chìm (~0.4s) → núi mới trồi lên (~0.6s) → pin rơi lần lượt ---- */
+  const easeOut = t => 1 - Math.pow(1-t, 3);
+  function dropPins(){
+    const nodes = [...gPins.querySelectorAll('g.pin')].sort((a,b) => (+a.getAttribute('data-idx')) - (+b.getAttribute('data-idx')));
+    gPins.style.opacity = '1';
+    nodes.forEach((n, i) => {
+      n.style.transition = 'none';
+      n.style.opacity = '0';
+      n.style.transform = 'translateY(-16px)';
+      setTimeout(() => {
+        n.style.transition = 'opacity .22s ease, transform .3s cubic-bezier(.2,.8,.3,1.25)';
+        n.style.opacity = '1';
+        n.style.transform = 'translateY(0)';
+      }, 60 + i*50);
+    });
+  }
+  function animateSwitch(apply){
+    if (switchRAF){ cancelAnimationFrame(switchRAF); switchRAF = 0; }
+    const SINK = 380, RISE = 620;
+    const t0 = performance.now();
+    (function sink(now){
+      const t = Math.min(1, (now - t0)/SINK);
+      riseK = 1 - easeOut(t);
+      const op = String(riseK);
+      gRoute.style.opacity = op; gProg.style.opacity = op; gPins.style.opacity = op;
+      renderScene();
+      if (t < 1){ switchRAF = requestAnimationFrame(sink); return; }
+      apply();                                  /* đổi dữ liệu khi núi đã chìm hết */
+      gPins.style.opacity = '0';
+      const t1 = performance.now();
+      (function rise(now2){
+        const t2 = Math.min(1, (now2 - t1)/RISE);
+        riseK = easeOut(t2);
+        const op2 = String(riseK);
+        gRoute.style.opacity = op2; gProg.style.opacity = op2;
+        renderScene();
+        if (t2 < 1){ switchRAF = requestAnimationFrame(rise); return; }
+        riseK = 1; switchRAF = 0;
+        gRoute.style.opacity = ''; gProg.style.opacity = '';
+        renderScene();
+        dropPins();
+      })(performance.now());
+    })(t0);
+  }
+  function chonCung(id, force){
+    if (!CUNG[id] || (id === cungId && !force)) return;
+    const doiCung = id !== cungId;
+    if (doiCung){ stopSim(); stopJourney(true); }
+    const apply = () => { cungId = id; rot = 0; tien = 0; resetView(); setStatus(''); renderAll(); if (map) clearLiveLayers(); syncView(); };
+    if (!doiCung || reduced){ riseK = 1; apply(); return; }
+    animateSwitch(apply);
+  }
+
+  /* ---------- overlay nhật ký ---------- */
+  const logOverlay = document.getElementById('logOverlay');
+  function moNhatKy(){
+    renderLog();
+    document.getElementById('ovSub').textContent = cur().ten + ' · ' + cur().viTri;
+    logOverlay.hidden = false;
+    requestAnimationFrame(()=> logOverlay.classList.add('open'));
+  }
+  function dongNhatKy(){ logOverlay.classList.remove('open'); setTimeout(()=> logOverlay.hidden = true, reduced ? 0 : 300); }
+  document.getElementById('openLogBtn').addEventListener('click', moNhatKy);
+  document.getElementById('ovClose').addEventListener('click', dongNhatKy);
+  document.getElementById('ovBackdrop').addEventListener('click', dongNhatKy);
+
+  /* ---------- sheet điểm ---------- */
+  const sheet = document.getElementById('sheet');
+  const KM_MOT_DONVI = 2.5 / 4.6;
+  const kmDV = c => c.kmPerUnit || KM_MOT_DONVI;          /* km thật cho 1 đơn vị cảnh của cung */
+  function xzToGps(c, x, z){ const la0 = c.gps.lat, lo0 = c.gps.lon, K = kmDV(c); return { lat: la0 - (z*K)/110.574, lon: lo0 + (x*K)/(111.32*Math.cos(la0*Math.PI/180)) }; }
+  function openSheet(p){
+    const c = cur();
+    document.getElementById('sheetType').textContent  = pinType(p);
+    document.getElementById('sheetTitle').textContent = pinTitle(p);
+    document.getElementById('sheetDesc').textContent  = pinDesc(p);
+    const photo = document.getElementById('sheetPhoto');
+    if (p.anh){ photo.innerHTML = `<img src="${esc(p.anh)}" alt="${esc(pinTitle(p))}">`; photo.classList.remove('empty'); }
+    else { photo.innerHTML = `<div class="ph">Chưa có ảnh<br><small>ganAnh('${esc(c.id)}','${esc(p.id)}', {anh:'…'})</small></div>`; photo.classList.add('empty'); }
+    let coord;
+    if (c.tuyenThat && (c.gps.lat || c.gps.lon)){ const g = xzToGps(c, p.x, p.z); coord = g.lat.toFixed(5) + '° B · ' + g.lon.toFixed(5) + '° Đ'; }
+    else coord = 'Vị trí minh họa (chưa có GPS thật)';
+    document.getElementById('sheetMeta').innerHTML = `<dt>Loại</dt><dd>${esc(pinType(p))}</dd><dt>Vị trí</dt><dd>${esc(coord)}</dd><dt>Cung</dt><dd>${esc(c.ten)}</dd>`;
+    sheet.hidden = false;
+    requestAnimationFrame(()=> sheet.classList.add('open'));
+    document.getElementById('sheetClose').focus();
+  }
+  function closeSheet(){ sheet.classList.remove('open'); setTimeout(()=> sheet.hidden = true, reduced ? 0 : 260); }
+  document.getElementById('sheetClose').addEventListener('click', closeSheet);
+  document.getElementById('sheetBackdrop').addEventListener('click', closeSheet);
+  document.getElementById('sheetLogBtn').addEventListener('click', () => { closeSheet(); setTimeout(moNhatKy, reduced ? 0 : 280); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape'){ if (!sheet.hidden) closeSheet(); else if (!logOverlay.hidden) dongNhatKy(); else { const ad = document.getElementById('adminOverlay'); if (ad && !ad.hidden) dongAdmin(); } } });
+
+  /* ---------- orbit 3D: kéo xoay + nghiêng + quán tính + zoom ---------- */
+  function svgPoint(clientX, clientY){ const r = svg.getBoundingClientRect(); return [ (clientX - r.left)/r.width * 400, (clientY - r.top)/r.height * 402 ]; }
+  function zoomAt(sx, sy, factor){
+    const nz = clamp(zoom * factor, 1, 4);
+    viewTx = sx - (nz/zoom) * (sx - viewTx);
+    viewTy = sy - (nz/zoom) * (sy - viewTy);
+    zoom = nz;
+    if (zoom <= 1.001){ zoom = 1; viewTx = 0; viewTy = 0; }
+    applyView();
+  }
+  const pointers = new Map();
+  let pinchInit = null, raf = 0;
+  const queueScene = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; renderScene(); }); };
+  svg.addEventListener('pointerdown', e => { pointers.set(e.pointerId, {x:e.clientX, y:e.clientY}); svg.setPointerCapture(e.pointerId);
+    if (inertiaRAF){ cancelAnimationFrame(inertiaRAF); inertiaRAF = 0; } velYaw = 0; velPitch = 0;
+    if (pointers.size === 2){ const p = [...pointers.values()]; pinchInit = { dist: Math.hypot(p[0].x-p[1].x, p[0].y-p[1].y), zoom, tx:viewTx, ty:viewTy, mid: svgPoint((p[0].x+p[1].x)/2, (p[0].y+p[1].y)/2) }; } });
+  svg.addEventListener('pointermove', e => {
+    if (!pointers.has(e.pointerId)) return;
+    const prev = pointers.get(e.pointerId); pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if (pointers.size >= 2 && pinchInit){
+      const p = [...pointers.values()];
+      const dist = Math.hypot(p[0].x-p[1].x, p[0].y-p[1].y);
+      const nz = clamp(pinchInit.zoom * (dist / pinchInit.dist), 1, 4);
+      const mid = svgPoint((p[0].x+p[1].x)/2, (p[0].y+p[1].y)/2);
+      viewTx = mid[0] - (nz/pinchInit.zoom) * (pinchInit.mid[0] - pinchInit.tx);
+      viewTy = mid[1] - (nz/pinchInit.zoom) * (pinchInit.mid[1] - pinchInit.ty);
+      zoom = nz; if (zoom <= 1.001){ zoom = 1; viewTx = 0; viewTy = 0; }
+      applyView();
+    } else if (pointers.size === 1){
+      const dYaw = (e.clientX - prev.x) * .008;
+      const before = pitch;
+      rot += dYaw;
+      pitch = clamp(pitch + (e.clientY - prev.y) * .006, PITCH_MIN, PITCH_MAX);
+      velYaw = dYaw; velPitch = pitch - before;
+      queueScene();
+    }
+  });
+  function endPointer(e){
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinchInit = null;
+    if (pointers.size === 0 && (Math.abs(velYaw) > 0.004 || Math.abs(velPitch) > 0.004)) startInertia();
+  }
+  function startInertia(){
+    if (inertiaRAF) cancelAnimationFrame(inertiaRAF);
+    (function step(){
+      velYaw *= 0.93; velPitch *= 0.93;
+      rot += velYaw; pitch = clamp(pitch + velPitch, PITCH_MIN, PITCH_MAX);
+      renderScene();
+      inertiaRAF = (Math.abs(velYaw) > 0.0006 || Math.abs(velPitch) > 0.0006) ? requestAnimationFrame(step) : 0;
+    })();
+  }
+  svg.addEventListener('pointerup', endPointer);
+  svg.addEventListener('pointercancel', endPointer);
+  svg.addEventListener('wheel', e => { e.preventDefault(); const [sx, sy] = svgPoint(e.clientX, e.clientY); zoomAt(sx, sy, e.deltaY < 0 ? 1.12 : 1/1.12); }, {passive:false});
+  document.getElementById('zoomIn').addEventListener('click', () => zoomAt(CX, CY, 1.3));
+  document.getElementById('zoomOut').addEventListener('click', () => zoomAt(CX, CY, 1/1.3));
+  document.getElementById('viewReset').addEventListener('click', () => { resetView(); renderScene(); });
+
+  /* ---------- mô phỏng ---------- */
+  const simBtn = document.getElementById('simBtn'), gpsStatusEl = document.getElementById('gpsStatus');
+  const setStatus = t => gpsStatusEl.textContent = t;
+  function setProgress(f){ tien = clamp(f,0,1); renderProgress(); mapSetProgress(tien); }
+  let simRAF = 0, simActive = false;
+  function toggleSim(){
+    if (recording) return;
+    if (simActive){ stopSim(); return; }
+    if (routeGeo.length < 2){ setStatus('Chưa có lộ trình để mô phỏng.'); return; }
+    simActive = true; simBtn.classList.add('active'); simBtn.textContent = '⏸ Dừng mô phỏng';
+    if (tien >= 1) tien = 0;
+    const dur = 9000, t0 = performance.now() - tien*dur;
+    (function step(now){ if (!simActive) return; let f = (now - t0)/dur; if (f >= 1){ setProgress(1); simActive = false; simBtn.classList.remove('active'); simBtn.textContent = '▶ Mô phỏng lại'; return; } setProgress(f); simRAF = requestAnimationFrame(step); })(performance.now());
+  }
+  function stopSim(){ if (!simActive && !simRAF) return; simActive = false; if (simRAF){ cancelAnimationFrame(simRAF); simRAF = 0; } simBtn.classList.remove('active'); simBtn.textContent = tien >= 1 ? '▶ Mô phỏng lại' : '▶ Mô phỏng lộ trình'; }
+  simBtn.addEventListener('click', toggleSim);
+
+  /* ---------- bắt đầu hành trình: ghi GPS ---------- */
+  const startBtn = document.getElementById('startBtn'), startLbl = document.getElementById('startLabel');
+  const recBadge = document.getElementById('recBadge'), recText = document.getElementById('recText');
+  let recording = false, recWatch = null, recTimer = null, recT0 = 0, recPts = [];
+  function haversine(a, b){ const R = 6371, dLa = (b.lat-a.lat)*Math.PI/180, dLo = (b.lon-a.lon)*Math.PI/180; const s = Math.sin(dLa/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLo/2)**2; return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s)); }
+  const pad = n => String(n).padStart(2,'0');
+  function recDist(){ let d = 0; for (let i=1;i<recPts.length;i++) d += haversine(recPts[i-1], recPts[i]); return d; }
+  function updateRecUI(accuracy){ const secs = Math.floor((Date.now()-recT0)/1000); recText.textContent = 'GHI · ' + pad(Math.floor(secs/60)) + ':' + pad(secs%60); setStatus('Đang ghi · ' + recPts.length + ' điểm · ' + recDist().toFixed(2) + ' km' + (accuracy ? ' · ±' + Math.round(accuracy) + ' m' : '')); mapRecStats(); }
+  function toLocalTrack(c, P){
+    if (c.custom || c.fitTrack){
+      /* track dài (nhiều km) tự co vừa khung cảnh */
+      const la = P.map(p=>p.lat), lo = P.map(p=>p.lon);
+      const ctr = { lat:(Math.min(...la)+Math.max(...la))/2, lon:(Math.min(...lo)+Math.max(...lo))/2 };
+      if (c.custom) c.gps = ctr;
+      const la0 = ctr.lat, lo0 = ctr.lon;
+      const raw = P.map(p => [ (p.lon-lo0)*111.32*Math.cos(la0*Math.PI/180), -(p.lat-la0)*110.574 ]);
+      let maxR = 0; raw.forEach(([x,z]) => maxR = Math.max(maxR, Math.hypot(x,z)));
+      const f = maxR > 0 ? 3.6/maxR : 1;
+      c.kmPerUnit = maxR > 0 ? maxR/3.6 : KM_MOT_DONVI;   /* tỉ lệ thật: 1 đơn vị cảnh = ? km */
+      return raw.map(xz => [xz[0]*f, xz[1]*f]);
+    }
+    return P.map(p => gpsToXZ(c, p.lat, p.lon));
+  }
+  function liveTrack(){
+    const c = cur();
+    const xz = toLocalTrack(c, recPts);
+    const eles = recPts.map(p => p.ele).filter(e => typeof e === 'number');
+    const eMin = eles.length ? Math.min(...eles) : 0, eMax = eles.length ? Math.max(...eles) : 1;
+    c.track = recPts.map((p,i) => (typeof p.ele === 'number' && eMax > eMin) ? [xz[i][0], xz[i][1], (p.ele-eMin)/(eMax-eMin)*(eMax/1000)] : [xz[i][0], xz[i][1]]);
+    buildRouteGeo(); tien = 1; renderScene();
+  }
+  function startJourney(){
+    if (!('geolocation' in navigator)){ setStatus('Thiết bị không hỗ trợ GPS.'); return; }
+    stopSim();
+    recording = true; recPts = []; recT0 = Date.now();
+    const c = cur(); c.track = []; c.geoTrack = []; c.tuyenThat = true;
+    buildRouteGeo(); tien = 0; renderScene();
+    /* cung "Tự đi" ghi trên bản đồ thật; cung núi ghi trên sơ đồ 3D */
+    if (c.custom) showMap(true);
+    if (mapOn && map){
+      clearLiveLayers(); clearSavedLayers();
+      mTimeEl.textContent = '00:00'; mPaceEl.textContent = '-:--'; mDistEl.textContent = '0,00';
+      setBanner('Đang chờ tín hiệu GPS…', 'wait');
+    }
+    startBtn.classList.add('rec'); startLbl.textContent = 'Dừng & lưu';
+    recBadge.hidden = false; recText.textContent = 'GHI · 00:00'; updateDemoTag(); updateCustomUI();
+    setStatus('Đang xin quyền vị trí…');
+    recTimer = setInterval(() => updateRecUI(), 1000);
+    recWatch = navigator.geolocation.watchPosition(pos => {
+      const { latitude, longitude, altitude, accuracy } = pos.coords;
+      recPts.push({ lat:latitude, lon:longitude, ele: (typeof altitude === 'number' ? altitude : undefined) });
+      if (recPts.length >= 2) liveTrack();
+      mapLive(accuracy);
+      updateRecUI(accuracy);
+    }, err => { setStatus('Không lấy được GPS: ' + err.message + ' — thử nút "Mô phỏng".'); setBanner('Không lấy được GPS: ' + err.message, 'err'); },
+    { enableHighAccuracy:true, maximumAge:1000, timeout:15000 });
+  }
+  function stopJourney(silent){
+    if (!recording) return;
+    recording = false;
+    if (recWatch != null){ navigator.geolocation.clearWatch(recWatch); recWatch = null; }
+    if (recTimer){ clearInterval(recTimer); recTimer = null; }
+    startBtn.classList.remove('rec'); startLbl.textContent = 'Bắt đầu hành trình'; recBadge.hidden = true;
+    const c = cur();
+    if (recPts.length >= 2){
+      napTrack(cungId, recPts.map(p => ({ lat:p.lat, lon:p.lon, ele:p.ele })));
+      if (c.custom){ try{ localStorage.setItem('mt-track', JSON.stringify(recPts)); }catch(err){} }
+      const d = new Date();
+      c.log = c.log || [];
+      c.log.push({ kind:'diem', ten:'Kết thúc hành trình', luc: pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.'+String(d.getFullYear()).slice(2)+' lúc '+pad(d.getHours())+':'+pad(d.getMinutes()), fields:[{n:'Quãng đường', v:String(c.km).replace('.',',')+' km'},{n:'Điểm ghi', v:recPts.length+' điểm GPS'}] });
+      if (!silent) setStatus('Đã lưu: ' + recPts.length + ' điểm · ' + String(c.km).replace('.',',') + ' km.');
+    } else { updateDemoTag(); updateCustomUI(); if (!silent) setStatus('Chưa đủ điểm GPS để lưu — cần di chuyển thêm.'); }
+    if (map){ clearLiveLayers(); if (mapOn){ syncMapRoute(false); if (recPts.length >= 2) setBanner('Đã lưu hành trình · ' + String(c.km).replace('.', ',') + ' km'); else setBanner('Chưa đủ điểm GPS để lưu.', 'wait'); } }
+    renderStats(); renderProfile(); renderHome();
+  }
+  startBtn.addEventListener('click', () => { recording ? stopJourney(false) : startJourney(); });
+
+  /* ============================================================
+     BẢN ĐỒ THẬT — Leaflet + tile CARTO dark (kiểu Strava).
+     Chạy được ngay ở đô thị: mở là định vị, ghi GPS vẽ vệt cam
+     trên phố thật; các cung có GPX thật vẽ đúng tuyến trên núi.
+     ============================================================ */
+  let map = null, mapOn = false;
+  let lySaved = [], lyLive = null, lyLiveGlow = null, liveMk = null, progMk = null;
+  const sceneWrap  = document.querySelector('.scene-wrap');
+  const mapModeEl  = document.getElementById('mapMode');
+  const gpsBanner  = document.getElementById('gpsBanner');
+  const mTimeEl = document.getElementById('mTime'), mPaceEl = document.getElementById('mPace'), mDistEl = document.getElementById('mDist');
+  const CAM_STRAVA = '#FC5200';
+
+  function setBanner(txt, cls){ gpsBanner.textContent = txt; gpsBanner.className = 'gps-banner' + (cls ? ' ' + cls : ''); }
+  function fmtTime(secs){
+    const h = Math.floor(secs/3600), m = Math.floor(secs%3600/60), s = secs%60;
+    return h ? (h + ':' + pad(m) + ':' + pad(s)) : (pad(m) + ':' + pad(s));
+  }
+  function fmtPace(secs, km){
+    if (!km || km < 0.05) return '-:--';
+    const p = secs / km;
+    if (p > 5940) return '-:--';
+    return Math.floor(p/60) + ':' + pad(Math.round(p%60));
+  }
+  const mkIcon = (html, cls, size) => L.divIcon({html, className:cls || '', iconSize:[size||22, size||22], iconAnchor:[(size||22)/2, (size||22)/2]});
+
+  function initMap(){
+    if (map || !window.L) return;
+    map = L.map('realMap', {zoomControl:false, attributionControl:true});
+    map.attributionControl.setPrefix(false);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      {maxZoom:20, subdomains:'abcd', attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(map);
+    /* Chủ quyền biển đảo Việt Nam — nhãn luôn hiển thị, không phụ thuộc tile */
+    [
+      {ll:[16.50, 112.00], ten:'QĐ. Hoàng Sa<small>Đà Nẵng, Việt Nam</small>'},
+      {ll:[ 8.64, 111.92], ten:'QĐ. Trường Sa<small>Khánh Hòa, Việt Nam</small>'},
+      {ll:[10.29, 103.98], ten:'Đảo Phú Quốc<small>Kiên Giang, Việt Nam</small>'}
+    ].forEach(d => L.marker(d.ll, {
+      icon: L.divIcon({html:'<span>'+d.ten+'</span>', className:'vn-island', iconSize:null}),
+      interactive:false, keyboard:false, zIndexOffset:600
+    }).addTo(map));
+    map.setView([21.0285, 105.8542], 12);
+    document.getElementById('mapZin').addEventListener('click', () => map.zoomIn());
+    document.getElementById('mapZout').addEventListener('click', () => map.zoomOut());
+    if (window.MountainTracker) MountainTracker.map = map;   /* expose để debug/tích hợp */
+  }
+  function clearSavedLayers(){
+    lySaved.forEach(l => map.removeLayer(l)); lySaved = [];
+    if (progMk){ map.removeLayer(progMk); progMk = null; }
+  }
+  function clearLiveLayers(){
+    if (lyLiveGlow){ map.removeLayer(lyLiveGlow); lyLiveGlow = null; }
+    if (lyLive){ map.removeLayer(lyLive); lyLive = null; }
+  }
+  /* vẽ tuyến đã lưu của cung hiện tại (vệt cam Strava: lớp mờ rộng + lớp nét) */
+  function syncMapRoute(fit){
+    if (!map) return;
+    clearSavedLayers();
+    const c = cur();
+    const pts = (c.geoTrack || []).map(p => [p.lat, p.lon]);
+    if (pts.length >= 2){
+      lySaved.push(L.polyline(pts, {color:CAM_STRAVA, weight:9, opacity:.28, lineJoin:'round'}).addTo(map));
+      lySaved.push(L.polyline(pts, {color:CAM_STRAVA, weight:3.5, opacity:.95, lineJoin:'round'}).addTo(map));
+      lySaved.push(L.marker(pts[0], {icon: mkIcon('S','mk-pin mk-s')}).addTo(map));
+      lySaved.push(L.marker(pts[pts.length-1], {icon: mkIcon('F','mk-pin mk-f')}).addTo(map));
+      if (fit !== false) map.fitBounds(L.latLngBounds(pts), {padding:[38,38]});
+      mDistEl.textContent = c.km ? String(c.km).replace('.', ',') : '0,00';
+    } else {
+      mDistEl.textContent = '0,00';
+      if (c.gps && (c.gps.lat || c.gps.lon)) map.setView([c.gps.lat, c.gps.lon], 13);
+    }
+    if (!recording){ mTimeEl.textContent = '00:00'; mPaceEl.textContent = '-:--'; }
+  }
+  /* cung núi → sơ đồ 3D; cung "Tự đi" (custom) → bản đồ thật */
+  function syncView(){ showMap(!!cur().custom); }
+  function showMap(on){
+    mapOn = on;
+    sceneWrap.classList.toggle('mapon', on);
+    mapModeEl.hidden = !on;
+    if (!on){ renderScene(); return; }
+    if (!window.L){ setBanner('Không tải được thư viện bản đồ — cần kết nối mạng.', 'err'); return; }
+    initMap();
+    startLiveWatch();                              /* GPS tự kết nối từ thiết bị, không cần bấm */
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+      syncMapRoute();
+      if (recording && recPts.length) mapLive();
+      else if ((cur().geoTrack || []).length >= 2) setBanner('Tuyến đã lưu — bấm "Bắt đầu hành trình" để ghi mới', 'wait');
+      else setBanner('Đang định vị…', 'wait');
+    });
+  }
+  /* GPS trực tiếp từ thiết bị: watchPosition chạy nền ngay khi mở bản đồ,
+     chấm xanh bám theo liên tục; khi đang ghi thì watch của hành trình lo. */
+  let liveWatchId = null, lastFix = null;
+  function startLiveWatch(){
+    if (liveWatchId != null) return;
+    if (!('geolocation' in navigator)){ setBanner('Thiết bị không hỗ trợ GPS.', 'err'); return; }
+    liveWatchId = navigator.geolocation.watchPosition(pos => {
+      const first = !lastFix;
+      lastFix = [pos.coords.latitude, pos.coords.longitude];
+      if (!map || recording) return;
+      if (!liveMk) liveMk = L.marker(lastFix, {icon: mkIcon('','live-dot',18), interactive:false, zIndexOffset:900}).addTo(map);
+      else liveMk.setLatLng(lastFix);
+      if (first && (cur().geoTrack || []).length < 2) map.setView(lastFix, Math.max(map.getZoom(), 16));
+      setBanner('Đã thu được tín hiệu GPS · ±' + Math.round(pos.coords.accuracy) + ' m');
+    }, err => {
+      if (!recording) setBanner('Không lấy được GPS: ' + err.message + ' — kiểm tra quyền vị trí.', 'err');
+    }, {enableHighAccuracy:true, maximumAge:2000, timeout:15000});
+  }
+  function locateMe(){
+    if (!map) return;
+    if (lastFix){ map.setView(lastFix, Math.max(map.getZoom(), 16)); return; }
+    setBanner('Đang định vị…', 'wait');
+    startLiveWatch();
+  }
+  document.getElementById('mapLocate').addEventListener('click', locateMe);
+
+  /* cập nhật vệt ghi trực tiếp + chấm xanh + thống kê kiểu Strava */
+  function mapLive(accuracy){
+    if (!map || !mapOn || !recPts.length) return;
+    const pts = recPts.map(p => [p.lat, p.lon]);
+    if (pts.length >= 2){
+      if (!lyLiveGlow){
+        lyLiveGlow = L.polyline(pts, {color:CAM_STRAVA, weight:9, opacity:.28, lineJoin:'round'}).addTo(map);
+        lyLive = L.polyline(pts, {color:CAM_STRAVA, weight:3.5, opacity:.95, lineJoin:'round'}).addTo(map);
+      } else { lyLiveGlow.setLatLngs(pts); lyLive.setLatLngs(pts); }
+    }
+    const last = pts[pts.length-1];
+    if (!liveMk) liveMk = L.marker(last, {icon: mkIcon('','live-dot',18), interactive:false, zIndexOffset:900}).addTo(map);
+    else liveMk.setLatLng(last);
+    if (map.getZoom() < 15) map.setView(last, 16); else map.panTo(last);
+    setBanner('Đã thu được tín hiệu GPS' + (accuracy ? ' · ±' + Math.round(accuracy) + ' m' : ''));
+  }
+  function mapRecStats(){
+    if (!recording) return;
+    const secs = Math.floor((Date.now() - recT0)/1000);
+    const km = recDist();
+    mTimeEl.textContent = fmtTime(secs);
+    mPaceEl.textContent = fmtPace(secs, km);
+    mDistEl.textContent = km.toFixed(2).replace('.', ',');
+  }
+  /* mô phỏng lộ trình trên bản đồ thật: chấm chạy dọc geoTrack */
+  function mapSetProgress(f){
+    if (!map || !mapOn) return;
+    const g = cur().geoTrack || [];
+    if (g.length < 2){ if (progMk){ map.removeLayer(progMk); progMk = null; } return; }
+    const i = Math.min(g.length - 1, Math.round(clamp(f,0,1) * (g.length - 1)));
+    const ll = [g[i].lat, g[i].lon];
+    if (!progMk) progMk = L.marker(ll, {icon: mkIcon('','live-dot',18), interactive:false, zIndexOffset:800}).addTo(map);
+    else progMk.setLatLng(ll);
+  }
+
+  /* ---------- kéo ngang bằng chuột cho các dải cuộn ---------- */
+  function keoNgang(elm){
+    let down = false, sx = 0, sl = 0, moved = false;
+    elm.addEventListener('pointerdown', e => { down = true; moved = false; sx = e.clientX; sl = elm.scrollLeft; });
+    elm.addEventListener('pointermove', e => {
+      if (!down) return;
+      const dx = e.clientX - sx;
+      if (Math.abs(dx) > 5 && !moved){ moved = true; try{ elm.setPointerCapture(e.pointerId); }catch(err){} }
+      if (moved) elm.scrollLeft = sl - dx;
+    });
+    ['pointerup','pointercancel'].forEach(t => elm.addEventListener(t, () => { down = false; }));
+    elm.addEventListener('click', e => { if (moved){ e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+  }
+  keoNgang(document.getElementById('ptScroll'));
+  keoNgang(document.getElementById('rtabs'));
+
+  /* ---------- chọn khu vực offline (Tự đi — người dùng thường) ---------- */
+  function apDungKhuVuc(kv, im){
+    const c = CUNG.custom;
+    c.khuVuc = kv.ten;
+    if (kv.mau && CUNG[kv.mau]){ c.gps = {...CUNG[kv.mau].gps}; c.diaHinh = {...CUNG[kv.mau].diaHinh}; c.phang = false; }
+    else { if (kv.gps) c.gps = kv.gps; c.phang = true; }
+    c.viTri = 'Khu vực: ' + kv.ten + ' · gói offline đã lưu';
+    try{ localStorage.setItem('mt-khuvuc', JSON.stringify(kv)); }catch(err){}
+    if (!im){ setStatus('Đã lưu gói offline "' + kv.ten + '" — sẵn sàng ghi hành trình.'); renderAll(); }
+  }
+  function renderAreaSel(){
+    const sel = document.getElementById('areaSel');
+    sel.innerHTML = '';
+    THU_TU.filter(id => !CUNG[id].custom).forEach(id => {
+      const o = document.createElement('option'); o.value = id; o.textContent = CUNG[id].ten + ' — ' + CUNG[id].viTri;
+      sel.appendChild(o);
+    });
+  }
+  document.getElementById('areaSave').addEventListener('click', () => {
+    const id = document.getElementById('areaSel').value;
+    if (CUNG[id]) apDungKhuVuc({ten:CUNG[id].ten, mau:id});
+  });
+  document.getElementById('areaMake').addEventListener('click', () => {
+    const lat = parseFloat(document.getElementById('areaLat').value);
+    const lon = parseFloat(document.getElementById('areaLon').value);
+    if (!isFinite(lat) || !isFinite(lon)){ setStatus('Cần tọa độ hợp lệ (dán từ Google Maps).'); return; }
+    const ten = (document.getElementById('areaName').value || '').trim() || 'Khu vực mới';
+    apDungKhuVuc({ten, gps:{lat, lon}});
+  });
+
+  /* ---------- admin (nút ⋯): nạp GPX/KML ---------- */
+  const adminOverlay = document.getElementById('adminOverlay');
+  function moAdmin(){
+    const sel = document.getElementById('adminCung');
+    sel.innerHTML = '';
+    THU_TU.forEach(id => {
+      const o = document.createElement('option'); o.value = id;
+      o.textContent = (CUNG[id].custom ? 'Cung của tôi' : CUNG[id].ten) + (CUNG[id].tuyenThat ? ' · GPX ✓' : '');
+      sel.appendChild(o);
+    });
+    sel.value = cungId;
+    adminOverlay.hidden = false;
+    requestAnimationFrame(() => adminOverlay.classList.add('open'));
+  }
+  function dongAdmin(){ adminOverlay.classList.remove('open'); setTimeout(() => adminOverlay.hidden = true, reduced ? 0 : 300); }
+  document.getElementById('adminBtn1').addEventListener('click', moAdmin);
+  document.getElementById('adminBtn2').addEventListener('click', moAdmin);
+  document.getElementById('adClose').addEventListener('click', dongAdmin);
+  document.getElementById('adBackdrop').addEventListener('click', dongAdmin);
+
+  document.getElementById('fileInput').addEventListener('change', e => {
+    const file = e.target.files && e.target.files[0]; if (!file) return;
+    const target = document.getElementById('adminCung').value || 'custom';
+    const rd = new FileReader();
+    rd.onload = () => {
+      const txt = String(rd.result);
+      const c = CUNG[target];
+      if (c && !c.custom) c.fitTrack = true;
+      const ok = /\.kml$/i.test(file.name) ? napKML(target, txt) : napGPX(target, txt);
+      document.getElementById('adminStatus').textContent = ok
+        ? ('Đã nạp ' + file.name + ' vào ' + (c.custom ? 'Cung của tôi' : c.ten) + '.')
+        : 'File không đọc được — cần GPX/KML có toạ độ.';
+      if (ok){
+        if (c.custom) c.ten = file.name.replace(/\.(gpx|kml|xml)$/i,'');
+        autoPins(c);
+        chonCung(target, true); moTrang('route'); dongAdmin();
+      }
+    };
+    rd.readAsText(file); e.target.value = '';
+  });
+
+  /* ---------- API ---------- */
+  function gpsToXZ(c, lat, lon){ const la0 = c.gps.lat, lo0 = c.gps.lon, K = kmDV(c); return [ (lon - lo0) * 111.32 * Math.cos(la0*Math.PI/180) / K, -(lat - la0) * 110.574 / K ]; }
+  function napTrack(id, diem){
+    const c = CUNG[id]; if (!c || !Array.isArray(diem) || !diem.length) return false;
+    const P = diem.map(p => Array.isArray(p) ? {lat:p[0], lon:p[1], ele:p[2]} : p).filter(p => isFinite(p.lat) && isFinite(p.lon));
+    if (P.length < 2) return false;
+    let dist = 0, gain = 0, maxE = -Infinity, minE = Infinity;
+    for (let i = 0; i < P.length; i++){
+      if (typeof P[i].ele === 'number'){ maxE = Math.max(maxE, P[i].ele); minE = Math.min(minE, P[i].ele); }
+      if (i > 0){ dist += haversine(P[i-1], P[i]); if (typeof P[i].ele === 'number' && typeof P[i-1].ele === 'number'){ const dd = P[i].ele - P[i-1].ele; if (dd > 0) gain += dd; } }
+    }
+    const xz = toLocalTrack(c, P);
+    const eMin = isFinite(minE) ? minE : 0, eMax = isFinite(maxE) ? maxE : 1;
+    /* Thang độ cao CHUNG mọi cung (1 đơn vị cảnh = 1 km trên mực nước biển):
+       chóp = độ cao đỉnh thật (eMax/1000) → Fansipan cao nhất đúng thực tế;
+       hình dạng núi theo relief của track. */
+    c.track = P.map((p,i) => (typeof p.ele === 'number' && eMax > eMin) ? [xz[i][0], xz[i][1], (p.ele-eMin)/(eMax-eMin)*(eMax/1000)] : [xz[i][0], xz[i][1]]);
+    c.geoTrack = P;                                   /* tọa độ GPS gốc — dùng cho bản đồ thật */
+    c.tuyenThat = true;
+    if (dist > 0) c.km = +dist.toFixed(1);
+    if (gain > 0) c.leo = Math.round(gain);
+    if (isFinite(maxE)){ c.dinh = Math.round(maxE); c.caoLabel = c.custom ? 'Điểm cao nhất' : c.caoLabel; }
+    if (id === cungId){ resetView(); buildRouteGeo(); tien = recording ? 1 : 0; renderScene(); renderStats(); renderPtStrip(); renderProfile(); renderHome(); updateDemoTag(); updateCustomUI(); }
+    return true;
+  }
+  function napGPX(id, gpxText){
+    let doc; try { doc = new DOMParser().parseFromString(gpxText, 'application/xml'); } catch(e){ return false; }
+    const pts = [...doc.querySelectorAll('trkpt, rtept, wpt')].map(p => ({ lat: parseFloat(p.getAttribute('lat')), lon: parseFloat(p.getAttribute('lon')), ele: p.querySelector('ele') ? parseFloat(p.querySelector('ele').textContent) : undefined })).filter(p => isFinite(p.lat) && isFinite(p.lon));
+    return napTrack(id, pts);
+  }
+  function napKML(id, kmlText){
+    let doc; try { doc = new DOMParser().parseFromString(kmlText, 'application/xml'); } catch(e){ return false; }
+    const pts = [];
+    [...doc.getElementsByTagName('coordinates')].forEach(n => {
+      n.textContent.trim().split(/\s+/).forEach(tok => { const a = tok.split(',').map(Number); if (isFinite(a[1]) && isFinite(a[0])) pts.push({ lat:a[1], lon:a[0], ele: isFinite(a[2]) ? a[2] : undefined }); });
+    });
+    return napTrack(id, pts);
+  }
+  function ganAnh(cId, pinId, info){ const c = CUNG[cId]; if (!c) return false; const pin = (c.pins || []).find(p => p.id === pinId); if (!pin) return false; if (info.anh !== undefined) pin.anh = info.anh; if (info.tt !== undefined) pin.tt = info.tt; if (info.mt !== undefined) pin.mt = info.mt; if (cId === cungId){ renderPins(); renderPtStrip(); } return true; }
+  function themCung(cung){ if (!cung || !cung.id) return false; CUNG[cung.id] = Object.assign({ diaHinh:{cao:3.2, rong:8, vai:.1}, trail:[], pins:[], log:[], dinh:0, km:0, leo:0, ten:cung.id, viTri:'', gps:{lat:0, lon:0}, loai:'nui', caoLabel:'Đỉnh', gpsApprox:true, tuyenThat:false }, cung); (CUNG[cung.id].pins || []).forEach((p,i)=>{ if(!p.id) p.id = p.kind+'-'+i; }); if (!THU_TU.includes(cung.id)) THU_TU.splice(THU_TU.length-1, 0, cung.id); renderRTabs(); renderHome(); return true; }
+  function dsDiem(id){ const c = CUNG[id || cungId]; if (!c) return []; return (c.pins || []).map(p => ({id:p.id, tieuDe:pinTitle(p), loai:pinType(p), coAnh:!!p.anh})); }
+
+  /* ---------- pin tự sinh từ track GPX thật ---------- */
+  function autoPins(c){
+    if (!c || !c.track || c.track.length < 2) return;
+    let hi = 0;
+    c.track.forEach((t,i) => { if ((t[2]||0) > (c.track[hi][2]||0)) hi = i; });
+    const A = c.track[0], D = c.track[hi], B = c.track[c.track.length-1];
+    c.pins = [
+      {id:'xuatphat', x:A[0], z:A[1], h:A[2]||0, len:34, kind:'letter', ch:'S', tt:'Xuất phát', mt:'Điểm đầu track GPX thật.'},
+      {id:'dinh', x:D[0], z:D[1], h:D[2]||0, len:42, kind:'flag', tt:'Đỉnh ' + c.ten, mt:'Điểm cao nhất theo GPX' + (c.dinh ? ' — ' + c.dinh.toLocaleString('vi-VN') + ' m.' : '.')},
+      {id:'dich', x:B[0], z:B[1], h:B[2]||0, len:30, kind:'letter', ch:'F', tt:'Kết thúc', mt:'Điểm cuối track GPX thật.'}
+    ];
+    c.gieng = []; c.trail = [];
+    if (cungId === c.id){ renderPins(); renderPtStrip(); }
+  }
+
+  /* ---------- 15 track GPX thật (drive-download 18/07/2026, giảm mẫu) ---------- */
+  const GPX_META = {
+    chuva12:{ten:'Chu Va 12', viTri:'Tam Đường, Lai Châu'},
+    kangsuvan:{ten:'Khang Su Văn', viTri:'Phong Thổ, Lai Châu'},
+    kyquansan:{ten:'Kỳ Quan San', viTri:'Bát Xát, Lào Cai'},
+    lungcung:{ten:'Lùng Cúng', viTri:'Mù Cang Chải, Yên Bái'},
+    namkang:{ten:'Nam Kang Ho Tao', viTri:'Tam Đường, Lai Châu'},
+    nguchison:{ten:'Ngũ Chỉ Sơn', viTri:'Sa Pa, Lào Cai'},
+    nhiucosan:{ten:'Nhìu Cồ San', viTri:'Bát Xát, Lào Cai'},
+    pusilung:{ten:'Pu Si Lung', viTri:'Mường Tè, Lai Châu', tg:'3N2Đ'},
+    putaleng:{ten:'Putaleng', viTri:'Tam Đường, Lai Châu'},
+    pomalung:{ten:'Pờ Ma Lung – Chung Nhíu Vũ', viTri:'Phong Thổ, Lai Châu'},
+    tachinhu:{ten:'Tà Chì Nhù', viTri:'Trạm Tấu, Yên Bái'},
+    taxua:{ten:'Tà Xùa', viTri:'Trạm Tấu, Yên Bái'},
+    talienson:{ten:'Tả Liên Sơn', viTri:'Tam Đường, Lai Châu'}
+  };
+  const GPX_EMBED = /*__GPX_EMBED__*/{"chuva12":[[22.35174,103.69973,1013],[22.35213,103.7009,1017],[22.35264,103.702,1029],[22.35241,103.70312,1047],[22.35243,103.70452,1057],[22.35158,103.70482,1062],[22.35035,103.70503,1071],[22.34914,103.70482,1085],[22.34799,103.70495,1101],[22.34679,103.70511,1117],[22.34553,103.7053,1128],[22.34476,103.70559,1142],[22.34542,103.7061,1170],[22.34509,103.70719,1225],[22.34504,103.70833,1263],[22.34434,103.70927,1317],[22.34366,103.71016,1326],[22.34286,103.71089,1356],[22.34254,103.71177,1418],[22.3419,103.71234,1460],[22.34146,103.71319,1489],[22.34108,103.71406,1535],[22.34119,103.71496,1568],[22.3415,103.71574,1604],[22.34175,103.71649,1652],[22.34146,103.71714,1720],[22.34103,103.71766,1806],[22.3405,103.71821,1885],[22.33966,103.71824,1958],[22.33928,103.71906,2004],[22.33874,103.71979,2012],[22.33808,103.72031,2015],[22.33736,103.72008,2109],[22.33659,103.72008,2220],[22.33596,103.72002,2306],[22.33551,103.71992,2378],[22.33498,103.72055,2418],[22.33415,103.72092,2367],[22.33404,103.72175,2338],[22.33348,103.72164,2395],[22.33272,103.72137,2415],[22.33198,103.7222,2458],[22.3313,103.72314,2443],[22.33084,103.72408,2403],[22.33013,103.72399,2473],[22.32942,103.72472,2508],[22.32914,103.72582,2499],[22.32888,103.72681,2455],[22.32846,103.72727,2440],[22.32808,103.72815,2441],[22.32727,103.7281,2491],[22.32677,103.72796,2489],[22.32633,103.72863,2511],[22.32558,103.72904,2568],[22.32492,103.72839,2611],[22.32506,103.72793,2677],[22.32524,103.72742,2738],[22.32527,103.72751,2738],[22.32525,103.7282,2669],[22.32516,103.72868,2611],[22.32592,103.72906,2585],[22.32632,103.72836,2509],[22.32713,103.72792,2500],[22.32763,103.72818,2468],[22.328,103.72774,2403],[22.32776,103.72711,2354],[22.32738,103.72648,2304],[22.32697,103.72602,2253],[22.327,103.72506,2212],[22.32628,103.72484,2155],[22.3259,103.72402,2103],[22.32552,103.72326,2040],[22.32611,103.72268,2003],[22.32643,103.7218,1947],[22.32636,103.72099,1912],[22.32673,103.72042,1870],[22.32697,103.71958,1852],[22.32688,103.71848,1822],[22.32724,103.71761,1751],[22.3277,103.717,1679],[22.32827,103.71654,1634],[22.32884,103.71578,1586],[22.32946,103.71507,1557],[22.33001,103.71432,1531],[22.33074,103.71367,1501],[22.3316,103.71321,1464],[22.3326,103.71284,1444],[22.33334,103.71226,1414],[22.33421,103.71192,1394],[22.33512,103.71186,1376],[22.33611,103.7119,1354],[22.33692,103.71165,1311],[22.33757,103.71106,1292],[22.33841,103.71086,1273],[22.33916,103.7101,1256],[22.33971,103.70916,1241],[22.34039,103.70817,1224],[22.34104,103.70704,1203],[22.34195,103.70598,1181],[22.34302,103.70567,1162],[22.34389,103.70589,1148],[22.34491,103.70547,1132],[22.34604,103.70528,1116],[22.34728,103.705,1105],[22.34867,103.70475,1080],[22.34986,103.70506,1060],[22.35094,103.705,1051],[22.35197,103.70502,1041],[22.35239,103.70386,1038],[22.35257,103.70249,1016],[22.35224,103.70126,999],[22.35176,103.70011,993],[22.35209,103.69888,985],[22.35233,103.69816,981]],"fansipan":[[22.33278,103.83855,1429],[22.33259,103.83642,1416],[22.3323,103.83479,1395],[22.33109,103.83596,1363],[22.33112,103.83456,1334],[22.33156,103.8326,1308],[22.33127,103.83085,1284],[22.33063,103.82973,1260],[22.32869,103.82941,1231],[22.32739,103.8306,1261],[22.32626,103.82973,1267],[22.3246,103.83039,1237],[22.32298,103.82954,1215],[22.32224,103.82768,1228],[22.32182,103.82592,1231],[22.32123,103.82454,1289],[22.31946,103.82469,1336],[22.31814,103.82476,1395],[22.31653,103.82534,1426],[22.31479,103.8261,1455],[22.31294,103.82654,1463],[22.31184,103.82732,1477],[22.31172,103.82541,1497],[22.3116,103.82368,1555],[22.31005,103.82316,1596],[22.30848,103.82282,1652],[22.30737,103.82172,1744],[22.3072,103.82017,1847],[22.30637,103.81908,1962],[22.30606,103.81756,2026],[22.30494,103.81652,2120],[22.3044,103.81485,2176],[22.30323,103.81403,2191],[22.30192,103.814,2138],[22.30136,103.81294,2173],[22.29977,103.8125,2270],[22.299,103.81154,2357],[22.29848,103.80989,2414],[22.29817,103.80828,2465],[22.29762,103.80669,2519],[22.29662,103.80552,2531],[22.29515,103.80578,2611],[22.29437,103.8044,2643],[22.29368,103.80317,2670],[22.29288,103.80143,2765],[22.29267,103.79991,2852],[22.29375,103.79858,2886],[22.29444,103.79701,2884],[22.29507,103.79582,2774],[22.29491,103.79446,2692],[22.29541,103.79308,2682],[22.29599,103.79155,2668],[22.297,103.79018,2668],[22.2977,103.78891,2661],[22.29849,103.7875,2642],[22.29977,103.78668,2660],[22.30019,103.78534,2694],[22.30018,103.78381,2757],[22.30092,103.78258,2821],[22.30212,103.78162,2888],[22.30202,103.78004,2936],[22.30237,103.77864,2982],[22.30296,103.77723,3030],[22.30341,103.77573,3040],[22.30316,103.7753,3133],[22.30332,103.77532,3118],[22.30372,103.77695,3080],[22.30441,103.77545,3070],[22.3057,103.77504,3031],[22.30664,103.77475,3002],[22.30742,103.77512,2944],[22.308,103.77388,2867],[22.30881,103.77272,2877],[22.30992,103.772,2916],[22.31005,103.77004,2912],[22.31093,103.76857,2897],[22.31201,103.76701,2880],[22.31296,103.76547,2843],[22.31434,103.76554,2777],[22.31584,103.76594,2776],[22.31721,103.7669,2763],[22.31887,103.76754,2681],[22.31962,103.76907,2648],[22.32042,103.77016,2578],[22.32186,103.77091,2528],[22.32316,103.77116,2472],[22.32453,103.77204,2403],[22.32605,103.77256,2375],[22.32665,103.77382,2369],[22.32689,103.77599,2341],[22.32604,103.77773,2322],[22.32633,103.77976,2295],[22.32738,103.78135,2255],[22.3289,103.78159,2242],[22.33007,103.78085,2219],[22.33133,103.7793,2198],[22.33325,103.77954,2171],[22.33436,103.77952,2112],[22.33544,103.77968,2068],[22.33715,103.77936,2056],[22.33803,103.77782,2057],[22.33897,103.7762,2047],[22.34064,103.7762,1998],[22.34229,103.77638,1986],[22.34381,103.7753,2013],[22.34575,103.77485,2011],[22.34722,103.77391,1968],[22.3488,103.77441,1946],[22.35049,103.77417,1900],[22.35086,103.7723,1898],[22.3516,103.77277,1928],[22.35281,103.77337,1945],[22.35305,103.775,1936]],"kangsuvan":[[22.73664,103.38872,1706],[22.73706,103.38998,1707],[22.73681,103.39124,1697],[22.73704,103.39256,1709],[22.73724,103.39384,1743],[22.73796,103.39503,1763],[22.73732,103.39551,1787],[22.73798,103.39647,1827],[22.73828,103.3976,1870],[22.73891,103.39872,1902],[22.73932,103.40004,1928],[22.73969,103.40142,1929],[22.74021,103.40221,1928],[22.74156,103.40213,1943],[22.74271,103.40223,1960],[22.74393,103.40221,1959],[22.74509,103.40209,1952],[22.74536,103.40285,1955],[22.74564,103.40382,1955],[22.74541,103.40491,1956],[22.74572,103.40572,1960],[22.74595,103.40704,1962],[22.74644,103.40808,1964],[22.74666,103.40925,1965],[22.74711,103.41056,1962],[22.74776,103.41175,1963],[22.74783,103.4129,1972],[22.74898,103.41356,1991],[22.74969,103.4148,1992],[22.74993,103.41586,2001],[22.74967,103.41695,2040],[22.74981,103.41823,2068],[22.74901,103.41909,2092],[22.74847,103.4201,2136],[22.74779,103.42118,2140],[22.74762,103.4223,2136],[22.74751,103.42349,2174],[22.74734,103.42474,2177],[22.74666,103.42589,2199],[22.7469,103.42703,2183],[22.74734,103.42794,2201],[22.74783,103.42866,2239],[22.74813,103.42953,2311],[22.74884,103.43023,2379],[22.74895,103.43124,2447],[22.74942,103.43228,2479],[22.75014,103.43275,2515],[22.75088,103.43331,2577],[22.75153,103.4333,2629],[22.75183,103.43394,2696],[22.75255,103.43389,2748],[22.75326,103.43471,2781],[22.7536,103.43567,2819],[22.75354,103.43668,2859],[22.75346,103.43788,2911],[22.75376,103.43906,2961],[22.75365,103.4399,2982],[22.75367,103.43986,2982],[22.75356,103.4386,2959],[22.75331,103.43734,2915],[22.75368,103.43618,2860],[22.75335,103.43519,2828],[22.75291,103.43434,2791],[22.75232,103.43376,2757],[22.75177,103.43347,2683],[22.751,103.43355,2632],[22.75038,103.43296,2554],[22.74948,103.43238,2499],[22.74893,103.43135,2476],[22.74874,103.43035,2423],[22.74806,103.42971,2355],[22.7478,103.42867,2288],[22.74734,103.42808,2233],[22.74689,103.42701,2203],[22.74671,103.42578,2217],[22.74724,103.42451,2188],[22.7476,103.42308,2172],[22.74752,103.42178,2146],[22.74797,103.42046,2144],[22.74878,103.41938,2116],[22.7496,103.41853,2077],[22.74963,103.41718,2046],[22.75001,103.41592,2002],[22.74964,103.41471,1990],[22.74881,103.41352,1989],[22.74773,103.41272,1964],[22.74767,103.41144,1961],[22.74691,103.41016,1957],[22.74634,103.40886,1953],[22.74634,103.40728,1942],[22.74575,103.40632,1948],[22.74585,103.40489,1944],[22.74567,103.40409,1944],[22.74533,103.40282,1942],[22.74492,103.40193,1941],[22.74363,103.40196,1947],[22.74234,103.40233,1953],[22.74132,103.4022,1925],[22.73981,103.4021,1914],[22.73961,103.40075,1915],[22.73906,103.39908,1906],[22.73828,103.39765,1867],[22.73789,103.39635,1818],[22.73742,103.39517,1776],[22.73751,103.39442,1750],[22.73696,103.39302,1716],[22.73684,103.39164,1692],[22.73702,103.39034,1697],[22.73664,103.38888,1700],[22.73628,103.38765,1686],[22.73651,103.3861,1672],[22.73591,103.3848,1668],[22.73686,103.38438,1652]],"kyquansan":[[22.52787,103.65684,1183],[22.52657,103.65568,1219],[22.52501,103.65469,1231],[22.52422,103.65322,1262],[22.5232,103.65159,1270],[22.52264,103.64982,1284],[22.52181,103.64815,1320],[22.52049,103.64717,1356],[22.51974,103.64552,1370],[22.51925,103.6441,1421],[22.51784,103.64317,1459],[22.51668,103.64186,1499],[22.51557,103.64049,1515],[22.51497,103.63884,1536],[22.51537,103.63721,1573],[22.51446,103.63606,1597],[22.51282,103.63552,1607],[22.51192,103.63418,1633],[22.51269,103.63256,1633],[22.51356,103.631,1647],[22.51408,103.62921,1660],[22.51454,103.62746,1660],[22.51414,103.62569,1661],[22.51508,103.62452,1654],[22.51575,103.62307,1669],[22.51615,103.62159,1674],[22.51595,103.62055,1671],[22.51594,103.6188,1685],[22.51534,103.61726,1729],[22.51448,103.61566,1773],[22.51329,103.61579,1837],[22.5119,103.61535,1895],[22.51072,103.61556,1975],[22.50965,103.616,2047],[22.50852,103.61606,2122],[22.50669,103.61558,2135],[22.50604,103.61396,2168],[22.50516,103.61277,2212],[22.50396,103.61192,2281],[22.50308,103.61058,2321],[22.5021,103.60966,2440],[22.50111,103.60874,2520],[22.50096,103.60706,2602],[22.50095,103.60516,2621],[22.50012,103.60373,2656],[22.50077,103.60214,2691],[22.50142,103.60077,2751],[22.50166,103.5989,2839],[22.50246,103.59754,2843],[22.50316,103.59605,2861],[22.50344,103.59436,2856],[22.50435,103.59304,2838],[22.5046,103.59116,2818],[22.50529,103.5896,2857],[22.50591,103.58784,2949],[22.50743,103.58792,3040],[22.5073,103.58785,3040],[22.5059,103.5879,2954],[22.50547,103.58941,2882],[22.50465,103.59092,2824],[22.50443,103.5928,2833],[22.5036,103.59428,2859],[22.50323,103.59592,2856],[22.50248,103.59748,2843],[22.50172,103.59881,2853],[22.50162,103.60038,2772],[22.50099,103.60192,2717],[22.50019,103.60341,2661],[22.50095,103.60504,2624],[22.50098,103.60707,2614],[22.50118,103.60877,2529],[22.50218,103.60961,2452],[22.5031,103.6105,2342],[22.50417,103.61199,2293],[22.50532,103.61275,2224],[22.50612,103.61409,2177],[22.50639,103.61523,2120],[22.50822,103.61586,2117],[22.5096,103.61609,2061],[22.51061,103.61562,1991],[22.51184,103.61528,1918],[22.51331,103.61577,1849],[22.51456,103.61573,1780],[22.51548,103.61749,1729],[22.51598,103.61919,1683],[22.51634,103.62119,1670],[22.5163,103.62238,1671],[22.51567,103.62399,1653],[22.51468,103.62533,1652],[22.51427,103.6269,1659],[22.51428,103.6286,1654],[22.51373,103.6306,1643],[22.51295,103.63226,1630],[22.51211,103.63392,1613],[22.51269,103.63531,1607],[22.51441,103.63602,1598],[22.51546,103.63706,1576],[22.51504,103.63872,1549],[22.51569,103.64054,1522],[22.5169,103.64204,1509],[22.51823,103.64322,1473],[22.51978,103.64461,1425],[22.52032,103.64644,1384],[22.52162,103.6478,1341],[22.5227,103.64954,1304],[22.52333,103.65138,1291],[22.52429,103.6531,1281],[22.52522,103.65475,1239],[22.52696,103.6559,1224],[22.52804,103.65735,1183],[22.52909,103.65907,1128],[22.52998,103.65973,1081],[22.52998,103.65832,1063]],"lungcung":[[21.85663,104.23568,1333],[21.85708,104.2342,1339],[21.85833,104.23373,1358],[21.85896,104.23283,1372],[21.85921,104.23135,1403],[21.85965,104.22986,1425],[21.86007,104.22846,1450],[21.86108,104.22721,1445],[21.86208,104.22598,1432],[21.8626,104.22461,1429],[21.86384,104.22445,1455],[21.86533,104.22412,1465],[21.86579,104.22452,1490],[21.86666,104.22362,1515],[21.86726,104.22226,1548],[21.86835,104.22136,1575],[21.86934,104.22055,1602],[21.87082,104.22032,1624],[21.87189,104.21964,1607],[21.87314,104.21973,1620],[21.87448,104.21954,1650],[21.87552,104.21893,1685],[21.87668,104.21848,1712],[21.87787,104.21825,1730],[21.87893,104.21896,1807],[21.8802,104.21958,1902],[21.88117,104.21999,1982],[21.8824,104.22034,2062],[21.88357,104.22078,2135],[21.8847,104.22047,2182],[21.88584,104.22035,2208],[21.88665,104.2213,2250],[21.88772,104.22205,2290],[21.88832,104.22314,2353],[21.8894,104.22404,2412],[21.89073,104.22408,2459],[21.89182,104.22489,2490],[21.89296,104.22564,2506],[21.89383,104.22641,2527],[21.89508,104.22644,2602],[21.89598,104.22627,2656],[21.89722,104.2263,2682],[21.89818,104.22712,2733],[21.89919,104.22786,2785],[21.89994,104.22874,2823],[21.90102,104.22954,2820],[21.90207,104.23051,2876],[21.90232,104.23124,2893],[21.90222,104.23082,2871],[21.90138,104.23004,2828],[21.90038,104.22893,2803],[21.89931,104.22825,2804],[21.89854,104.22722,2758],[21.89751,104.22666,2703],[21.89625,104.22616,2656],[21.89509,104.22564,2624],[21.89403,104.22524,2593],[21.89295,104.22508,2549],[21.89206,104.22432,2503],[21.89089,104.22436,2477],[21.88976,104.22404,2417],[21.88849,104.22336,2366],[21.88772,104.22237,2309],[21.88671,104.22166,2263],[21.88602,104.22052,2229],[21.88486,104.22032,2189],[21.88359,104.22076,2154],[21.88256,104.22042,2084],[21.88154,104.21998,2016],[21.88152,104.219,1958],[21.88087,104.21768,1923],[21.8805,104.21674,1891],[21.87974,104.21741,1898],[21.8783,104.21724,1883],[21.87742,104.21796,1834],[21.87644,104.21831,1763],[21.87534,104.2177,1731],[21.8744,104.21663,1705],[21.87385,104.21532,1688],[21.8727,104.21603,1680],[21.87185,104.21759,1666],[21.87112,104.21908,1657],[21.87072,104.22032,1652],[21.86921,104.22056,1621],[21.86798,104.22171,1590],[21.86684,104.22296,1550],[21.8661,104.22443,1522],[21.86551,104.22388,1492],[21.86412,104.22442,1486],[21.86265,104.22457,1455],[21.86211,104.22592,1450],[21.86115,104.22707,1464],[21.86016,104.22818,1479],[21.85959,104.22986,1454],[21.8591,104.23158,1433],[21.85898,104.23325,1397],[21.85776,104.23405,1382],[21.85686,104.2347,1370],[21.85632,104.23638,1359],[21.85551,104.23776,1349],[21.85458,104.23847,1324],[21.85387,104.23969,1306],[21.85269,104.24081,1296],[21.85176,104.24208,1265],[21.85134,104.24363,1241],[21.85101,104.24501,1217],[21.85008,104.2462,1193],[21.84962,104.24767,1190],[21.84769,104.24908,1176],[21.84572,104.25066,1163],[21.84418,104.25297,1131],[21.84277,104.254,1095],[21.84301,104.25424,1091]],"laothan":[[22.64054,103.65316,1717],[22.63957,103.65286,1732],[22.63856,103.65304,1744],[22.63763,103.65241,1756],[22.63655,103.65212,1765],[22.63552,103.65213,1766],[22.63444,103.65213,1770],[22.63342,103.65183,1779],[22.63242,103.65216,1795],[22.63198,103.65319,1809],[22.63139,103.65419,1819],[22.63046,103.65486,1830],[22.62963,103.65556,1841],[22.62854,103.65584,1849],[22.62761,103.65639,1859],[22.62676,103.65648,1871],[22.6258,103.65683,1882],[22.6251,103.65761,1893],[22.62436,103.65816,1907],[22.62371,103.65868,1932],[22.62329,103.65946,1956],[22.62268,103.66026,1975],[22.6218,103.66097,1992],[22.6213,103.66164,2028],[22.6217,103.6623,2062],[22.62217,103.66305,2092],[22.6225,103.6639,2118],[22.62262,103.66486,2146],[22.62285,103.66569,2182],[22.62281,103.66674,2206],[22.62315,103.66761,2238],[22.6228,103.66829,2270],[22.62196,103.66866,2292],[22.62088,103.66847,2298],[22.61986,103.6687,2312],[22.61902,103.66908,2330],[22.61841,103.66975,2364],[22.61765,103.67046,2380],[22.61688,103.67116,2387],[22.61606,103.6716,2411],[22.61552,103.67253,2420],[22.61524,103.67357,2433],[22.61456,103.67439,2442],[22.6147,103.67459,2437],[22.61398,103.67472,2435],[22.61301,103.67562,2446],[22.61252,103.67681,2451],[22.61181,103.67754,2469],[22.61197,103.67856,2462],[22.61184,103.67948,2473],[22.612,103.68025,2510],[22.61176,103.68083,2538],[22.6114,103.68184,2585],[22.61101,103.68269,2621],[22.61088,103.6836,2661],[22.61083,103.6847,2713],[22.61044,103.68568,2762],[22.61035,103.6862,2789],[22.61042,103.68607,2788],[22.61054,103.68511,2744],[22.61092,103.68422,2702],[22.61101,103.68316,2663],[22.61122,103.68218,2624],[22.61165,103.68125,2587],[22.61185,103.68048,2536],[22.61202,103.67954,2496],[22.61209,103.67858,2459],[22.6118,103.6775,2468],[22.61258,103.67668,2460],[22.61298,103.67544,2454],[22.61392,103.67455,2444],[22.61484,103.67364,2437],[22.61552,103.67256,2425],[22.61599,103.6714,2414],[22.61688,103.67093,2383],[22.61762,103.67022,2379],[22.61791,103.66998,2379],[22.61867,103.66925,2358],[22.61928,103.66864,2336],[22.6204,103.66834,2315],[22.62172,103.66851,2315],[22.6227,103.6681,2293],[22.62307,103.66728,2264],[22.62275,103.66633,2237],[22.62267,103.66532,2215],[22.62237,103.66452,2177],[22.62236,103.66356,2151],[22.6221,103.66273,2122],[22.62129,103.66229,2090],[22.62121,103.66145,2048],[22.6221,103.6611,2010],[22.62295,103.66053,1998],[22.62351,103.6596,1978],[22.62385,103.65872,1946],[22.62469,103.65828,1929],[22.62528,103.65743,1915],[22.62612,103.65679,1903],[22.62708,103.65668,1892],[22.62792,103.65615,1880],[22.62895,103.6559,1874],[22.62993,103.65537,1867],[22.63084,103.65478,1859],[22.63158,103.65396,1845],[22.63201,103.65295,1831],[22.6327,103.65217,1820],[22.63376,103.65209,1799],[22.63476,103.65234,1794],[22.63586,103.65222,1790],[22.6369,103.65241,1785],[22.63797,103.65278,1778],[22.63894,103.65308,1765],[22.63998,103.65315,1745],[22.64041,103.65329,1739]],"namkang":[[22.12142,103.90864,1217],[22.12265,103.90994,1231],[22.12351,103.9119,1266],[22.1247,103.91378,1287],[22.1258,103.91538,1307],[22.12737,103.91651,1326],[22.12872,103.91712,1376],[22.12966,103.91859,1443],[22.1304,103.92044,1507],[22.13043,103.92219,1517],[22.13107,103.9241,1530],[22.13056,103.92592,1586],[22.12986,103.92774,1638],[22.12914,103.92931,1725],[22.12928,103.93119,1817],[22.12867,103.93283,1908],[22.12835,103.93445,1989],[22.129,103.93826,2285],[22.1286,103.93976,2243],[22.1288,103.94173,2202],[22.12986,103.94308,2169],[22.13134,103.9438,2118],[22.13162,103.94531,2073],[22.13139,103.94717,2051],[22.13004,103.94736,2054],[22.12866,103.94863,2078],[22.12816,103.95019,2093],[22.12768,103.95171,2112],[22.12864,103.95332,2099],[22.12842,103.95471,2104],[22.12688,103.95584,2121],[22.12529,103.95697,2141],[22.12503,103.95839,2157],[22.12563,103.95999,2139],[22.12694,103.9613,2111],[22.12867,103.96225,2103],[22.13031,103.96118,2090],[22.13146,103.95968,2089],[22.13326,103.95889,2095],[22.13405,103.96045,2121],[22.13346,103.96234,2138],[22.13346,103.96414,2143],[22.13422,103.96592,2139],[22.13578,103.96647,2081],[22.13748,103.96608,2073],[22.13896,103.96564,2104],[22.14043,103.96516,2138],[22.14181,103.96408,2180],[22.14346,103.9631,2222],[22.14491,103.96274,2254],[22.14614,103.96198,2335],[22.14721,103.96298,2400],[22.14846,103.96406,2487],[22.14929,103.96579,2592],[22.1506,103.96687,2699],[22.15094,103.96871,2802],[22.15054,103.96958,2850],[22.1509,103.96889,2812],[22.15052,103.96704,2733],[22.14927,103.96569,2613],[22.14838,103.96384,2506],[22.14675,103.96256,2416],[22.14561,103.96215,2353],[22.14412,103.96281,2287],[22.14233,103.96365,2221],[22.14065,103.96488,2177],[22.13895,103.96564,2119],[22.13722,103.9662,2081],[22.13543,103.9664,2103],[22.13407,103.96551,2151],[22.13318,103.96363,2149],[22.13373,103.96159,2151],[22.13377,103.95956,2114],[22.13203,103.9595,2099],[22.13051,103.96092,2096],[22.12895,103.96228,2098],[22.1271,103.96144,2100],[22.12594,103.96026,2130],[22.12466,103.95869,2141],[22.1255,103.95672,2126],[22.12738,103.95551,2103],[22.12869,103.95389,2089],[22.12785,103.95215,2101],[22.12791,103.9502,2086],[22.12862,103.94856,2070],[22.13,103.94708,2047],[22.13148,103.94678,2042],[22.13162,103.94468,2052],[22.13084,103.94348,2123],[22.12941,103.94281,2159],[22.12881,103.94115,2198],[22.12878,103.9396,2257],[22.12867,103.93828,2261],[22.12785,103.93736,2171],[22.1279,103.93586,2066],[22.12816,103.93431,1974],[22.12854,103.93242,1899],[22.12912,103.93083,1804],[22.12903,103.9293,1731],[22.12962,103.92781,1659],[22.13001,103.92621,1599],[22.13083,103.92464,1562],[22.1306,103.9228,1532],[22.1299,103.92089,1527],[22.13004,103.91917,1476],[22.12925,103.91769,1414],[22.12716,103.91632,1356],[22.12546,103.91511,1338],[22.12433,103.91334,1307],[22.12308,103.91139,1283],[22.12227,103.90928,1247],[22.12141,103.90959,1254],[22.1214,103.9097,1257]],"nguchison":[[22.43317,103.75398,1511],[22.43246,103.75372,1517],[22.43176,103.75337,1527],[22.43123,103.75351,1548],[22.43048,103.75343,1561],[22.42985,103.75304,1583],[22.42923,103.7528,1614],[22.42855,103.75264,1626],[22.4279,103.7522,1651],[22.42726,103.75178,1677],[22.42653,103.75164,1709],[22.42582,103.75156,1735],[22.42512,103.75142,1759],[22.42451,103.75116,1786],[22.42398,103.75157,1788],[22.42398,103.75156,1794],[22.42465,103.75109,1799],[22.42447,103.75076,1796],[22.42451,103.75118,1788],[22.42378,103.75156,1788],[22.42334,103.75122,1798],[22.42311,103.75062,1828],[22.42353,103.75025,1864],[22.42353,103.7495,1903],[22.423,103.7489,1926],[22.42252,103.7486,1959],[22.42189,103.74811,1978],[22.42122,103.74778,2002],[22.42075,103.74725,2018],[22.42028,103.74664,2039],[22.41976,103.74616,2063],[22.41912,103.74572,2079],[22.41848,103.74526,2111],[22.41782,103.74479,2147],[22.41718,103.74445,2186],[22.41662,103.74394,2218],[22.41597,103.74367,2249],[22.41533,103.74349,2255],[22.41461,103.74326,2257],[22.41397,103.74332,2272],[22.41341,103.74303,2274],[22.41268,103.74283,2285],[22.41226,103.74288,2301],[22.41196,103.74219,2344],[22.41166,103.7418,2372],[22.41141,103.74122,2405],[22.4112,103.74065,2446],[22.41103,103.74012,2484],[22.41049,103.74047,2493],[22.4099,103.74051,2533],[22.40974,103.7405,2558],[22.4096,103.74073,2600],[22.409,103.7407,2604],[22.4083,103.74046,2583],[22.40833,103.74088,2627],[22.40874,103.74136,2688],[22.40914,103.74159,2725],[22.40922,103.74167,2743],[22.40942,103.74161,2798],[22.40994,103.74224,2839],[22.40997,103.74224,2861],[22.40989,103.74208,2857],[22.40951,103.74162,2827],[22.40925,103.7417,2784],[22.40895,103.74153,2736],[22.40856,103.74125,2687],[22.40826,103.74079,2641],[22.4084,103.74048,2589],[22.40904,103.74077,2609],[22.40954,103.74072,2605],[22.40969,103.74033,2562],[22.41028,103.74051,2539],[22.4108,103.74016,2514],[22.41124,103.74042,2513],[22.41147,103.74101,2464],[22.41179,103.74163,2414],[22.41202,103.74224,2366],[22.4124,103.7429,2315],[22.41312,103.74288,2300],[22.41388,103.743,2291],[22.41447,103.74328,2288],[22.41524,103.74333,2285],[22.41593,103.74346,2270],[22.41656,103.74376,2250],[22.41708,103.74425,2224],[22.41771,103.74466,2192],[22.41831,103.74494,2159],[22.41886,103.74544,2117],[22.41962,103.74593,2099],[22.42026,103.74644,2068],[22.42073,103.74712,2036],[22.42123,103.7477,2017],[22.42198,103.74809,1996],[22.42264,103.74859,1976],[22.42316,103.74898,1939],[22.42369,103.7496,1916],[22.42369,103.75029,1882],[22.42313,103.75057,1850],[22.42341,103.75128,1818],[22.42384,103.75191,1795],[22.42448,103.75149,1794],[22.42518,103.75144,1777],[22.42597,103.75158,1750],[22.4267,103.75165,1723],[22.42748,103.75184,1689],[22.42816,103.75232,1663],[22.42883,103.75268,1635],[22.42965,103.75289,1609],[22.43035,103.75328,1578],[22.43119,103.75346,1559],[22.43172,103.75336,1533],[22.43259,103.75372,1523],[22.43323,103.75396,1515]],"nhiucosan":[[22.57022,103.62196,1360],[22.56984,103.62086,1378],[22.57042,103.62132,1394],[22.57157,103.62121,1413],[22.5721,103.62019,1425],[22.573,103.61949,1434],[22.57418,103.61916,1439],[22.57518,103.61852,1449],[22.57614,103.61832,1470],[22.577,103.61767,1479],[22.57718,103.61652,1470],[22.57791,103.6156,1462],[22.57866,103.61485,1460],[22.57834,103.61394,1469],[22.57856,103.61285,1482],[22.57897,103.61168,1484],[22.57987,103.61108,1479],[22.57993,103.6101,1490],[22.58093,103.60978,1507],[22.58188,103.60933,1519],[22.58272,103.60885,1547],[22.58329,103.60799,1570],[22.58401,103.60741,1598],[22.58476,103.60671,1620],[22.58559,103.60679,1655],[22.58651,103.60664,1675],[22.58682,103.60588,1672],[22.58712,103.60532,1693],[22.58648,103.60538,1735],[22.58632,103.60491,1794],[22.58675,103.60417,1835],[22.58644,103.60367,1874],[22.58626,103.60284,1933],[22.58619,103.60188,1973],[22.58537,103.60173,2001],[22.58444,103.60187,2025],[22.58354,103.60176,2040],[22.58255,103.60198,2055],[22.58183,103.6019,2113],[22.58094,103.60134,2145],[22.58051,103.60052,2190],[22.57975,103.59976,2212],[22.57898,103.5992,2229],[22.57886,103.59823,2260],[22.57898,103.59724,2282],[22.57951,103.59645,2327],[22.58008,103.59583,2374],[22.58062,103.59507,2414],[22.58064,103.59413,2465],[22.58142,103.59394,2475],[22.58204,103.59327,2477],[22.58226,103.59232,2512],[22.58224,103.59136,2530],[22.5825,103.5904,2553],[22.58282,103.58946,2602],[22.58292,103.58864,2672],[22.58302,103.5877,2731],[22.58257,103.5869,2756],[22.58282,103.58598,2790],[22.58306,103.58511,2834],[22.58364,103.58427,2885],[22.58382,103.5834,2949],[22.5836,103.58431,2902],[22.58306,103.58514,2850],[22.58283,103.586,2806],[22.58248,103.58694,2773],[22.58303,103.58773,2747],[22.5829,103.58865,2688],[22.58278,103.58935,2623],[22.58256,103.5903,2561],[22.58224,103.59135,2522],[22.58226,103.59232,2506],[22.58206,103.59328,2461],[22.58132,103.59396,2465],[22.58076,103.59445,2453],[22.58046,103.5954,2404],[22.5797,103.59593,2362],[22.5792,103.59677,2313],[22.57885,103.59773,2270],[22.57811,103.59859,2232],[22.57696,103.59818,2227],[22.57631,103.59736,2189],[22.57562,103.59686,2142],[22.57534,103.59794,2099],[22.57461,103.59881,2053],[22.57391,103.59942,2015],[22.57303,103.59985,1966],[22.57256,103.60052,1916],[22.57201,103.60113,1866],[22.57183,103.60207,1819],[22.57123,103.60275,1774],[22.57055,103.60323,1728],[22.56994,103.60417,1685],[22.56982,103.60537,1663],[22.57012,103.60647,1629],[22.57093,103.60724,1621],[22.5719,103.60772,1588],[22.57195,103.6087,1554],[22.57193,103.60998,1520],[22.57173,103.61117,1492],[22.5717,103.61231,1463],[22.57078,103.61292,1435],[22.57013,103.61388,1410],[22.57034,103.61521,1386],[22.5703,103.6162,1370],[22.57146,103.61657,1345],[22.57158,103.61725,1343],[22.57067,103.61805,1341],[22.56979,103.61902,1338],[22.56912,103.62001,1343],[22.56927,103.62114,1353],[22.57011,103.62221,1362]],"pusilung":[[22.56455,102.84136,1313],[22.5661,102.84174,1352],[22.56736,102.84017,1373],[22.56774,102.83863,1360],[22.56902,102.83765,1417],[22.57041,102.83737,1504],[22.57198,102.83661,1587],[22.57345,102.83551,1653],[22.57514,102.8363,1738],[22.5763,102.83475,1776],[22.57717,102.83332,1812],[22.57844,102.83146,1826],[22.57941,102.82952,1865],[22.57976,102.82722,1890],[22.58005,102.82487,1903],[22.58108,102.8227,1918],[22.5817,102.82194,1925],[22.5834,102.8217,1898],[22.58474,102.82256,1840],[22.58566,102.82364,1793],[22.58695,102.82292,1736],[22.58829,102.82223,1701],[22.59023,102.82158,1679],[22.59178,102.82063,1633],[22.59265,102.81965,1625],[22.59439,102.81882,1651],[22.5955,102.81763,1667],[22.59557,102.8154,1674],[22.59618,102.8132,1671],[22.59624,102.81151,1699],[22.59744,102.8096,1696],[22.5969,102.81058,1695],[22.59726,102.81014,1692],[22.59773,102.81042,1700],[22.59763,102.80979,1714],[22.59784,102.8102,1705],[22.59898,102.81006,1787],[22.60004,102.80976,1857],[22.60171,102.80838,1910],[22.60228,102.80604,1944],[22.60416,102.80612,1977],[22.60515,102.80666,2010],[22.60659,102.8064,2076],[22.60836,102.80694,2144],[22.60999,102.80646,2236],[22.61174,102.80582,2291],[22.61328,102.80495,2395],[22.61405,102.80311,2488],[22.61497,102.80156,2562],[22.61634,102.80116,2658],[22.61827,102.80145,2714],[22.62,102.80139,2804],[22.62189,102.80074,2868],[22.6234,102.79977,2925],[22.62365,102.79792,2915],[22.62441,102.79604,2911],[22.62547,102.79425,2922],[22.62643,102.79245,2935],[22.62579,102.79053,2975],[22.62656,102.78887,3047],[22.62639,102.78743,3070],[22.62632,102.78788,3050],[22.62617,102.78999,3010],[22.62616,102.79188,2942],[22.62564,102.79372,2931],[22.62459,102.7955,2905],[22.62375,102.79756,2911],[22.62349,102.79942,2936],[22.62266,102.80029,2918],[22.62085,102.80111,2848],[22.61899,102.80156,2775],[22.6169,102.80118,2705],[22.61517,102.8015,2623],[22.61412,102.80312,2536],[22.61329,102.80503,2441],[22.61147,102.80585,2339],[22.60936,102.80663,2256],[22.60735,102.80667,2158],[22.6054,102.80594,2123],[22.60416,102.80583,2059],[22.60222,102.80631,2012],[22.60117,102.80851,1959],[22.59956,102.80967,1896],[22.59819,102.81008,1809],[22.59689,102.81083,1754],[22.59635,102.81274,1745],[22.59591,102.81466,1714],[22.59519,102.81701,1707],[22.5952,102.81894,1694],[22.59344,102.81942,1654],[22.59181,102.82024,1621],[22.59118,102.82156,1678],[22.58921,102.82217,1699],[22.58722,102.8222,1726],[22.58621,102.82385,1782],[22.58557,102.82264,1819],[22.58397,102.82292,1897],[22.58277,102.82172,1920],[22.58112,102.82275,1948],[22.58008,102.82511,1933],[22.57984,102.82769,1919],[22.57908,102.83002,1886],[22.57767,102.83224,1858],[22.577,102.83417,1817],[22.57554,102.83596,1793],[22.5737,102.83554,1695],[22.57174,102.83666,1610],[22.57,102.83743,1525],[22.56834,102.83808,1429],[22.5673,102.83904,1396],[22.56683,102.84111,1400],[22.56532,102.84125,1359],[22.56368,102.84188,1340]],"putaleng":[[22.41987,103.54059,1341],[22.42094,103.54178,1341],[22.4211,103.54371,1337],[22.42178,103.5454,1349],[22.42309,103.54602,1395],[22.42463,103.54614,1389],[22.4257,103.54757,1389],[22.4264,103.5493,1405],[22.4268,103.55059,1420],[22.42809,103.55172,1449],[22.4281,103.55327,1474],[22.4282,103.55487,1488],[22.42725,103.5558,1522],[22.42684,103.5573,1560],[22.42662,103.55894,1588],[22.42767,103.5603,1589],[22.42782,103.56208,1595],[22.42761,103.56369,1589],[22.4279,103.56528,1605],[22.4278,103.56674,1615],[22.42689,103.56799,1636],[22.4264,103.56962,1648],[22.42574,103.57092,1674],[22.42485,103.5723,1705],[22.42437,103.57376,1715],[22.42448,103.57519,1749],[22.42495,103.57668,1785],[22.42458,103.57815,1787],[22.42422,103.5796,1833],[22.42368,103.58074,1917],[22.42331,103.58195,1977],[22.4236,103.58351,2017],[22.42324,103.58437,2072],[22.4222,103.5854,2100],[22.42158,103.58671,2115],[22.42182,103.58821,2121],[22.42106,103.58943,2148],[22.42005,103.59071,2175],[22.41913,103.59078,2202],[22.41863,103.59232,2233],[22.41725,103.59272,2272],[22.4165,103.59392,2290],[22.41624,103.59547,2320],[22.41559,103.59658,2354],[22.41474,103.59773,2391],[22.41464,103.59921,2417],[22.414,103.60038,2445],[22.4135,103.60172,2477],[22.41258,103.60254,2515],[22.41205,103.6033,2519],[22.41345,103.60338,2561],[22.41482,103.6033,2600],[22.41622,103.60291,2671],[22.41764,103.603,2747],[22.41913,103.60278,2848],[22.42052,103.60338,2938],[22.42175,103.60314,3010],[22.42288,103.60392,3040],[22.42289,103.60385,3044],[22.42199,103.60336,3027],[22.42077,103.60339,2973],[22.41973,103.60294,2901],[22.41845,103.60293,2816],[22.41719,103.60305,2740],[22.41591,103.60304,2681],[22.41448,103.60339,2615],[22.41298,103.60349,2574],[22.4124,103.60284,2532],[22.41321,103.6019,2516],[22.41374,103.60068,2474],[22.4146,103.59937,2451],[22.41479,103.59773,2426],[22.41574,103.59654,2387],[22.41625,103.59528,2354],[22.4167,103.59366,2320],[22.41762,103.59274,2299],[22.41874,103.59202,2270],[22.41937,103.5905,2235],[22.42055,103.59016,2215],[22.42152,103.58886,2168],[22.42205,103.58737,2161],[22.42177,103.58576,2145],[22.42307,103.58498,2135],[22.42365,103.58395,2071],[22.42328,103.58242,2048],[22.42383,103.58102,1984],[22.42423,103.57974,1907],[22.42453,103.57836,1851],[22.42508,103.57686,1840],[22.4246,103.57517,1806],[22.42448,103.57372,1767],[22.42485,103.57247,1754],[22.42598,103.57077,1721],[22.42655,103.56945,1697],[22.42716,103.56765,1679],[22.42784,103.56613,1658],[22.42784,103.56437,1646],[22.4278,103.56276,1636],[22.42793,103.5608,1630],[22.42711,103.5593,1636],[22.4267,103.55757,1616],[22.42731,103.55567,1567],[22.42851,103.5545,1528],[22.42816,103.55265,1517],[22.42768,103.55113,1477],[22.4268,103.54994,1441],[22.42598,103.5484,1433],[22.42524,103.54634,1417],[22.42368,103.54582,1439],[22.42212,103.54563,1394],[22.42125,103.54385,1370],[22.42122,103.54192,1370],[22.42018,103.54054,1370],[22.42006,103.54058,1370]],"pomalung":[[22.60342,103.4164,816],[22.6018,103.41699,819],[22.59967,103.41858,834],[22.59974,103.42054,846],[22.59668,103.42092,839],[22.59458,103.42275,833],[22.59226,103.42365,853],[22.59007,103.42505,848],[22.59232,103.42363,855],[22.59161,103.42621,901],[22.59168,103.4286,960],[22.59081,103.4303,1022],[22.59094,103.43225,1048],[22.59072,103.43478,1066],[22.58971,103.43665,1157],[22.59145,103.43742,1161],[22.59267,103.43906,1163],[22.59316,103.43981,1184],[22.59333,103.44181,1204],[22.59426,103.44407,1245],[22.59559,103.44627,1269],[22.5952,103.44867,1309],[22.59578,103.45064,1398],[22.59607,103.4529,1430],[22.59541,103.45554,1425],[22.59545,103.45746,1506],[22.59573,103.45982,1604],[22.59556,103.46228,1715],[22.59659,103.46413,1832],[22.5967,103.46635,1957],[22.59668,103.46866,2116],[22.59721,103.47111,2238],[22.59759,103.47352,2231],[22.5985,103.47463,2243],[22.60075,103.47432,2270],[22.60216,103.47586,2289],[22.60444,103.47612,2321],[22.60644,103.4766,2377],[22.60789,103.47811,2363],[22.60895,103.47935,2392],[22.61052,103.48095,2448],[22.6124,103.48207,2501],[22.61444,103.482,2556],[22.61622,103.48322,2575],[22.61781,103.48436,2605],[22.61946,103.48602,2677],[22.61953,103.48839,2704],[22.61921,103.49082,2723],[22.61816,103.4928,2712],[22.61752,103.49498,2727],[22.61677,103.49705,2739],[22.61604,103.49911,2775],[22.61533,103.5011,2809],[22.61396,103.50265,2849],[22.61366,103.50332,2885],[22.61497,103.50148,2816],[22.61603,103.49928,2785],[22.61678,103.49703,2742],[22.6176,103.49475,2720],[22.61849,103.49242,2721],[22.61928,103.49008,2724],[22.62016,103.48804,2727],[22.6221,103.48748,2761],[22.62399,103.48672,2833],[22.62572,103.48591,2893],[22.62674,103.48572,2945],[22.62589,103.48583,2897],[22.62395,103.48667,2839],[22.62176,103.4877,2745],[22.61963,103.48794,2688],[22.61891,103.48566,2649],[22.61726,103.48393,2559],[22.6154,103.48237,2571],[22.61317,103.48209,2522],[22.61134,103.48189,2475],[22.60978,103.48015,2432],[22.60829,103.47862,2375],[22.60682,103.47714,2367],[22.60478,103.47642,2325],[22.60249,103.47629,2304],[22.60099,103.47437,2271],[22.59871,103.47429,2260],[22.59768,103.47414,2237],[22.59724,103.47159,2235],[22.59663,103.46902,2146],[22.59664,103.46677,2000],[22.59656,103.46425,1861],[22.59558,103.46255,1750],[22.59557,103.46007,1644],[22.59534,103.45743,1532],[22.59526,103.45551,1449],[22.5959,103.45306,1451],[22.59564,103.45063,1414],[22.59518,103.44848,1326],[22.59531,103.44604,1285],[22.59408,103.44374,1260],[22.59293,103.44131,1214],[22.59251,103.4388,1178],[22.59104,103.43734,1186],[22.58976,103.43618,1154],[22.59084,103.43445,1080],[22.59069,103.43187,1060],[22.59115,103.42975,1020],[22.59166,103.4276,955],[22.5922,103.42538,891],[22.59342,103.4232,850],[22.59564,103.42268,841],[22.59766,103.42108,846],[22.6002,103.421,835],[22.59996,103.41845,822],[22.6021,103.417,803],[22.6035,103.41622,802],[22.60359,103.41621,797]],"tachinhu":[[21.53638,104.31736,1192],[21.53583,104.31677,1221],[21.53622,104.31588,1243],[21.53626,104.31466,1262],[21.53633,104.31364,1261],[21.53708,104.31275,1252],[21.53754,104.31177,1258],[21.53833,104.31167,1282],[21.53867,104.31063,1320],[21.53914,104.31032,1346],[21.54009,104.31084,1367],[21.54098,104.31028,1402],[21.54119,104.30913,1432],[21.54201,104.3084,1459],[21.54321,104.30828,1489],[21.54368,104.30735,1510],[21.54479,104.30768,1543],[21.54566,104.3069,1566],[21.54648,104.30647,1593],[21.54726,104.30564,1628],[21.54823,104.30524,1667],[21.54927,104.30516,1709],[21.54909,104.30582,1752],[21.54917,104.30681,1794],[21.54996,104.30671,1830],[21.55073,104.30745,1857],[21.55115,104.30741,1890],[21.55154,104.30715,1930],[21.5524,104.30736,1937],[21.55315,104.30698,1974],[21.55347,104.30749,2017],[21.55418,104.30728,2053],[21.55473,104.3074,2094],[21.55501,104.308,2133],[21.55576,104.30756,2175],[21.55639,104.308,2225],[21.55706,104.30875,2257],[21.5577,104.30933,2277],[21.55888,104.30948,2293],[21.55959,104.30982,2332],[21.56002,104.31062,2369],[21.56016,104.31089,2388],[21.56061,104.31181,2415],[21.56142,104.31228,2458],[21.5624,104.31243,2498],[21.56332,104.31194,2540],[21.56402,104.31206,2564],[21.56456,104.31255,2604],[21.56538,104.31245,2643],[21.56587,104.31252,2676],[21.56622,104.31264,2687],[21.56676,104.31322,2728],[21.56744,104.31322,2752],[21.56792,104.31262,2784],[21.56848,104.31142,2803],[21.56898,104.31019,2812],[21.56974,104.30933,2837],[21.57038,104.30833,2880],[21.57072,104.30724,2923],[21.57071,104.30657,2964],[21.57062,104.30664,2969],[21.57063,104.30687,2963],[21.57055,104.30802,2917],[21.56983,104.30914,2879],[21.56911,104.31002,2826],[21.56852,104.31137,2812],[21.56786,104.3127,2786],[21.56706,104.3131,2750],[21.56611,104.3125,2695],[21.56522,104.31244,2648],[21.56431,104.31256,2598],[21.5634,104.3119,2553],[21.56236,104.31245,2509],[21.56127,104.31217,2465],[21.56048,104.31167,2419],[21.55996,104.31053,2391],[21.55922,104.30991,2356],[21.55828,104.30943,2317],[21.557,104.30905,2287],[21.55655,104.30804,2251],[21.5558,104.30746,2201],[21.5549,104.30799,2149],[21.55471,104.30717,2102],[21.55381,104.30724,2055],[21.55339,104.3069,2009],[21.55242,104.30724,1964],[21.55166,104.30722,1962],[21.55106,104.30744,1914],[21.55061,104.3072,1876],[21.54984,104.30651,1843],[21.54908,104.30639,1799],[21.54948,104.30533,1753],[21.54842,104.3052,1702],[21.54717,104.30571,1658],[21.54623,104.30668,1613],[21.54542,104.30732,1578],[21.54413,104.30753,1545],[21.54338,104.30793,1513],[21.54206,104.30835,1477],[21.54121,104.30925,1443],[21.54075,104.31044,1404],[21.53954,104.31066,1368],[21.53893,104.31015,1341],[21.5383,104.3113,1300],[21.53771,104.31157,1263],[21.53687,104.31242,1268],[21.53659,104.31333,1255],[21.53625,104.31409,1261],[21.53601,104.31542,1248],[21.536,104.31645,1233],[21.53635,104.31714,1193],[21.53621,104.31788,1183]],"taxua":[[21.44781,104.35353,1232],[21.4477,104.35204,1264],[21.44712,104.35052,1290],[21.44799,104.3496,1325],[21.44842,104.34833,1358],[21.44881,104.34682,1389],[21.45,104.34639,1421],[21.45113,104.34535,1458],[21.45189,104.34527,1476],[21.45242,104.34383,1508],[21.45275,104.34252,1553],[21.45272,104.34191,1585],[21.45138,104.34189,1622],[21.45,104.34178,1658],[21.44876,104.3417,1704],[21.44742,104.34176,1738],[21.44604,104.34166,1753],[21.44512,104.34126,1799],[21.44474,104.34016,1828],[21.44395,104.3394,1869],[21.44319,104.33926,1909],[21.44195,104.33906,1944],[21.44123,104.33874,2000],[21.4402,104.33869,2050],[21.4396,104.33866,2096],[21.43864,104.3383,2147],[21.43739,104.33832,2191],[21.43636,104.33711,2225],[21.43591,104.33609,2251],[21.43485,104.33504,2303],[21.4337,104.33405,2342],[21.43286,104.33272,2373],[21.43266,104.33151,2397],[21.43212,104.33014,2428],[21.43162,104.32894,2393],[21.43034,104.3279,2369],[21.42962,104.32687,2448],[21.42937,104.32548,2471],[21.42944,104.32426,2498],[21.42917,104.32288,2497],[21.42853,104.32157,2514],[21.42738,104.32098,2519],[21.42623,104.32027,2552],[21.42513,104.32021,2556],[21.42378,104.32064,2547],[21.4225,104.32135,2568],[21.42119,104.32162,2590],[21.41978,104.32202,2617],[21.41852,104.32281,2615],[21.41748,104.32382,2640],[21.41647,104.32481,2680],[21.41526,104.32553,2717],[21.41402,104.3263,2722],[21.41311,104.32734,2742],[21.41209,104.3279,2776],[21.41068,104.32773,2817],[21.40979,104.3268,2852],[21.40892,104.32573,2869],[21.40895,104.32581,2875],[21.4098,104.32678,2859],[21.41073,104.32772,2831],[21.41202,104.32786,2794],[21.41308,104.3274,2752],[21.41409,104.32625,2735],[21.41541,104.32551,2723],[21.4165,104.32474,2688],[21.41764,104.32414,2662],[21.41846,104.32283,2626],[21.41972,104.322,2626],[21.42119,104.3216,2605],[21.42261,104.32128,2572],[21.42386,104.32056,2552],[21.42518,104.32009,2565],[21.42631,104.31995,2565],[21.42721,104.32094,2531],[21.42858,104.3215,2526],[21.42923,104.32289,2506],[21.42949,104.32444,2507],[21.42968,104.32566,2469],[21.42989,104.32724,2439],[21.43073,104.32822,2380],[21.43176,104.32933,2397],[21.4322,104.33025,2434],[21.43292,104.33172,2401],[21.43315,104.33325,2375],[21.43446,104.33442,2337],[21.43534,104.33602,2291],[21.436,104.33664,2253],[21.43715,104.3381,2218],[21.43852,104.33818,2176],[21.43971,104.33855,2110],[21.44086,104.33858,2045],[21.44168,104.33896,1984],[21.44331,104.33922,1933],[21.4442,104.33965,1885],[21.44517,104.34063,1845],[21.44574,104.34164,1796],[21.44708,104.3419,1770],[21.4486,104.34157,1752],[21.45006,104.34176,1707],[21.45153,104.34189,1663],[21.45301,104.34182,1622],[21.45261,104.34292,1587],[21.45227,104.34447,1534],[21.45151,104.3452,1498],[21.45053,104.34617,1476],[21.44897,104.34664,1437],[21.44848,104.34844,1395],[21.44783,104.3495,1350],[21.44733,104.35071,1309],[21.44777,104.35229,1283],[21.44764,104.35416,1236],[21.4476,104.35419,1235]],"talienson":[[22.41488,103.5316,1281],[22.41586,103.53168,1309],[22.41729,103.53188,1337],[22.41842,103.53246,1376],[22.41989,103.53286,1408],[22.42119,103.5331,1437],[22.42216,103.53388,1468],[22.42337,103.53285,1476],[22.42432,103.53378,1483],[22.42479,103.53541,1475],[22.4244,103.53681,1496],[22.42428,103.53842,1507],[22.42433,103.53999,1512],[22.42372,103.54115,1540],[22.424,103.54234,1568],[22.42538,103.54214,1596],[22.42657,103.541,1583],[22.42805,103.54058,1584],[22.42936,103.54147,1599],[22.43048,103.54221,1602],[22.43108,103.54328,1608],[22.43162,103.54406,1641],[22.43272,103.54482,1675],[22.43405,103.54525,1688],[22.43546,103.54535,1706],[22.43674,103.54507,1706],[22.43801,103.5452,1686],[22.439,103.54555,1682],[22.43963,103.54646,1716],[22.44077,103.54658,1744],[22.44185,103.54604,1802],[22.4429,103.54657,1840],[22.444,103.54762,1863],[22.44494,103.54872,1902],[22.44555,103.55023,1929],[22.44611,103.55167,1955],[22.44679,103.55296,1996],[22.44788,103.55398,2005],[22.44913,103.55488,2028],[22.4504,103.55518,2062],[22.4513,103.55442,2117],[22.4518,103.55328,2169],[22.45247,103.55228,2238],[22.45344,103.55192,2285],[22.45397,103.55249,2326],[22.4544,103.55346,2387],[22.45508,103.55386,2430],[22.45614,103.55338,2490],[22.45709,103.55281,2532],[22.45827,103.55253,2591],[22.45921,103.55276,2654],[22.45998,103.55333,2684],[22.46103,103.55422,2713],[22.46158,103.55533,2776],[22.46175,103.55629,2849],[22.46252,103.55608,2919],[22.46311,103.55624,2965],[22.4626,103.55606,2929],[22.46166,103.55623,2855],[22.46148,103.55502,2772],[22.4607,103.55394,2713],[22.45967,103.55329,2685],[22.45883,103.55261,2670],[22.45798,103.55261,2609],[22.45701,103.55291,2550],[22.45595,103.5535,2499],[22.45476,103.554,2435],[22.4542,103.55314,2374],[22.45372,103.5521,2327],[22.45273,103.55197,2291],[22.45204,103.55279,2229],[22.45147,103.55373,2171],[22.4508,103.5548,2122],[22.4498,103.55492,2068],[22.44846,103.55446,2043],[22.44749,103.55331,2023],[22.44665,103.5522,2019],[22.44578,103.5511,1968],[22.44542,103.54964,1951],[22.44456,103.54839,1920],[22.44353,103.5473,1888],[22.44269,103.54618,1872],[22.44141,103.54618,1809],[22.44029,103.54658,1765],[22.43948,103.54591,1729],[22.43848,103.545,1707],[22.4375,103.54532,1720],[22.43625,103.54469,1724],[22.4349,103.54544,1725],[22.43346,103.5452,1709],[22.43261,103.54432,1685],[22.43112,103.544,1649],[22.4312,103.54279,1616],[22.43038,103.54163,1616],[22.42899,103.5414,1612],[22.42781,103.54044,1599],[22.42629,103.54126,1600],[22.42519,103.54234,1608],[22.42376,103.54241,1579],[22.42374,103.54072,1551],[22.42449,103.53957,1531],[22.42425,103.53794,1525],[22.42454,103.53636,1512],[22.42484,103.53478,1497],[22.42425,103.53327,1503],[22.42308,103.533,1498],[22.42187,103.53378,1485],[22.42082,103.53301,1453],[22.41952,103.53278,1425],[22.4181,103.53241,1389],[22.41701,103.5319,1355],[22.41574,103.53148,1329],[22.41487,103.53154,1307]]};
+
+  function napGPXEmbed(){
+    Object.keys(GPX_EMBED).forEach(id => {
+      const pts = GPX_EMBED[id];
+      if (!Array.isArray(pts) || pts.length < 2) return;
+      const P = pts.map(a => ({lat:a[0], lon:a[1], ele:a[2]}));
+      if (!CUNG[id]){
+        const m = GPX_META[id] || {ten:id, viTri:''};
+        let top = P[0]; P.forEach(p => { if ((p.ele||0) > (top.ele||0)) top = p; });
+        themCung({ id, ten:m.ten, viTri:m.viTri, gps:{lat:top.lat, lon:top.lon}, gpsApprox:false,
+          thoiGian:m.tg || '2N1Đ', diaHinh:{cao:3.2, rong:8, vai:.1} });
+      }
+      CUNG[id].fitTrack = true;
+      napTrack(id, P);
+      autoPins(CUNG[id]);
+    });
+  }
+
+  /* ---------- gói offline đã lưu (localStorage) ---------- */
+  function khoiPhucLocal(){
+    try{
+      const kv = JSON.parse(localStorage.getItem('mt-khuvuc') || 'null');
+      if (kv && kv.ten) apDungKhuVuc(kv, true);
+      const tr = JSON.parse(localStorage.getItem('mt-track') || 'null');
+      if (Array.isArray(tr) && tr.length >= 2) napTrack('custom', tr);
+    }catch(err){}
+  }
+
+  window.MountainTracker = {
+    napTrack, napGPX, napKML, ganAnh, themCung, chonCung, moTrang, moNhatKy, moAdmin, dsDiem,
+    dsCung: () => THU_TU.slice(), cungHienTai: () => CUNG[cungId],
+    cauHinh: { osmCache:false, osmURL:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+               ghiChu:'Bật osmCache khi deploy app riêng — bản artifact bị CSP chặn tile ngoài.' }
+  };
+
+  napGPXEmbed();
+  khoiPhucLocal();
+  renderAreaSel();
+  renderAll();
+  syncView();                                        /* cung núi → sơ đồ 3D · Tự đi → bản đồ thật */
+})();
+</script>
+</body>
+</html>
