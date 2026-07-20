@@ -2,7 +2,7 @@
    - Shell cùng origin: cache-first + cập nhật nền.
    - Tile CARTO/OSM: tra gói offline 'porter-tiles-v1' (URL chính tắc: subdomain a,
      bỏ @2x) trước, trượt thì ra mạng; mất mạng + có tile nào trùng thì vẫn hiện. */
-const CACHE = 'porter-v2';
+const CACHE = 'porter-v3';
 const TILE_CACHE = 'porter-tiles-v1';
 const SHELL = [
   './',
