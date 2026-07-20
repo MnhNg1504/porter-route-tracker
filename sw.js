@@ -44,7 +44,7 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (url.origin !== location.origin){
     /* tile bản đồ: chuẩn hóa URL về dạng gói offline rồi tra cache trước */
-    if (/basemaps\.cartocdn\.com|tile\.openstreetmap\.org|tile\.opentopomap\.org/.test(url.host)){
+    if (/basemaps\.cartocdn\.com|tile\.openstreetmap\.org/.test(url.host)){
       const canon = e.request.url.replace(/\/\/[abcd]\./, '//a.').replace('@2x.png', '.png');
       e.respondWith(
         caches.open(TILE_CACHE)

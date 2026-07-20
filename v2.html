@@ -619,6 +619,24 @@
   .nav-hud b{font-size:12px;display:block;color:#EAF1E4}
   .nav-hud small{font-size:9.5px;color:#8C9A82;font-family:'Space Mono',monospace;letter-spacing:.3px}
   .map-ctl button.hd-on{background:var(--go);color:#16281A}
+  /* HUD ướm hướng đi — đổi màu theo trạng thái đúng/chú ý/lệch */
+  .uom-hud{position:absolute;left:10px;right:10px;top:44px;z-index:9;display:flex;gap:11px;align-items:center;border-radius:15px;padding:10px 13px;backdrop-filter:blur(7px);transition:background .25s,border-color .25s;
+    background:rgba(14,20,15,.9);border:1.5px solid rgba(63,181,92,.55)}
+  .uom-hud[hidden]{display:none}
+  .uom-hud.uh-chuy{border-color:rgba(232,178,58,.7);background:rgba(30,25,8,.9)}
+  .uom-hud.uh-lech{border-color:rgba(255,45,45,.85);background:rgba(40,10,10,.94);animation:uomNhay .7s ease-in-out infinite}
+  @keyframes uomNhay{50%{border-color:rgba(255,90,90,1)}}
+  @media (prefers-reduced-motion: reduce){.uom-hud.uh-lech{animation:none}}
+  .uh-arrow{width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;transition:transform .35s,background .25s;background:#3FB55C}
+  .uom-hud.uh-chuy .uh-arrow{background:#E8B23A}
+  .uom-hud.uh-lech .uh-arrow{background:#FF2D2D}
+  .uh-arrow svg{width:17px;height:17px;stroke:#0B140D;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+  .uh-txt{flex:1;min-width:0}
+  .uh-txt b{font-size:13.5px;display:block;color:#F2F6EE;line-height:1.25}
+  .uom-hud.uh-lech .uh-txt b{color:#FFC9C9}
+  .uh-txt small{font-size:10.5px;color:#9BA88F;display:block}
+  .uom-hud.uh-lech .uh-txt small{color:#FF9A9A;font-weight:600}
+  .uh-pct{font-size:12px;font-weight:800;color:#C9E265;flex:none;font-family:'Space Mono',monospace}
 
   /* ===== FEED kiểu Instagram: story rail + lưới Explore + xem bài ===== */
   .fd-story{display:flex;gap:13px;overflow-x:auto;padding:10px 2px 12px;-ms-overflow-style:none;scrollbar-width:none}
@@ -947,6 +965,12 @@
               <button data-v="gps" type="button">Bản đồ GPS</button>
             </div>
             <div class="prog-pill"><span class="pdot"></span><b id="progPct">0%</b>&nbsp;lộ trình</div>
+            <!-- HUD ướm hướng đi (hiện cả trên Sơ đồ 2D lẫn Bản đồ GPS khi đang ghi) -->
+            <div class="uom-hud" id="uomHud" hidden>
+              <span class="uh-arrow" id="uhArrow"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="m5.5 9.5 6.5-6.5 6.5 6.5"/></svg></span>
+              <div class="uh-txt"><b id="uhTT">Đang định vị…</b><small id="uhCT">Chờ tín hiệu GPS</small></div>
+              <div class="uh-pct" id="uhPct">0%</div>
+            </div>
             <div class="demo-tag" id="demoTag">Tuyến minh họa</div>
             <div class="rec-badge" id="recBadge" hidden><span class="rd"></span><span id="recText">GHI GPS</span></div>
             <svg id="scene" viewBox="0 0 400 402" role="img" aria-label="Bản đồ đường đồng mức 3D; kéo xoay và nghiêng, véo để phóng, chạm điểm để xem">
@@ -986,7 +1010,6 @@
                 <button id="mapLocate" type="button" aria-label="Vị trí của tôi">◎</button>
                 <button id="mapHead" type="button" class="hd-on" aria-label="Xoay bản đồ theo hướng đi">➤</button>
                 <button id="mapSOS" type="button" aria-label="Khẩn cấp — SOS">🆘</button>
-                <button id="mapLayer" type="button" aria-label="Đổi lớp bản đồ (tối / địa hình)">⛰</button>
               </div>
               <div class="map-stats">
                 <div><b id="mTime">00:00</b><span>Thời gian</span></div>
@@ -1543,7 +1566,8 @@
   const gContour = el('g', {}, gView);
   const gRoute   = el('g', {}, gView);
   const gProg    = el('g', {}, gView);
-  const gLive    = el('g', {}, gView);   /* vệt GPS riêng của bạn — vẽ THÊM, không thay tuyến mẫu */
+  const gSim     = el('g', {}, gView);   /* vệt mô phỏng (tím đứt nét) — dưới vệt thật */
+  const gLive    = el('g', {}, gView);   /* vệt GPS thật (đỏ) — vẽ THÊM, không thay tuyến mẫu */
   const gPins    = el('g', {}, gView);
   function applyView(){ gView.setAttribute('transform', `translate(${viewTx.toFixed(2)} ${viewTy.toFixed(2)}) scale(${zoom.toFixed(3)})`); document.getElementById('zLvl').textContent = zoom.toFixed(1)+'×'; }
 
@@ -1836,21 +1860,45 @@
     });
   }
   /* vệt GPS thật của bạn trên núi (màu cam) — đường thứ hai bên cạnh tuyến mẫu */
+  /* vệt GPS THẬT (đỏ) + CHẤM VỊ TRÍ HIỆN TẠI + vòng sai số trên Sơ đồ 2D.
+     Chuyên gia dẫn đoàn: chấm mình + vòng sai số là thứ quan trọng nhất để người đi TIN. */
   function renderVetRieng(){
     gLive.innerHTML = '';
     const c = cur();
-    if (c.custom) return;
-    const src = (recording && recPts.length >= 2) ? recPts : (c.vetRieng || []);
-    if (src.length < 2) return;
-    const pts = src.map(p => { const [x, z] = gpsToXZ(c, p.lat, p.lon); return project(x, z, heightAt(x, z) + HOFF); });
-    const d = 'M' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L');
-    el('path', {d, fill:'none', stroke:'#FC5200', 'stroke-width':4.2, 'stroke-linecap':'round', 'stroke-linejoin':'round', opacity:.3, filter:'url(#glow)'}, gLive);
-    el('path', {d, fill:'none', stroke:'#FC5200', 'stroke-width':2.2, 'stroke-linecap':'round', 'stroke-linejoin':'round', opacity:.95}, gLive);
-    const hd = pts[pts.length-1];
-    el('circle', {cx:hd[0], cy:hd[1], r:5, fill:'#FC5200', filter:'url(#glow)'}, gLive);
-    el('circle', {cx:hd[0], cy:hd[1], r:2.4, fill:'#fff'}, gLive);
+    if (c.custom && !c.dich) return;                 /* tự-đi thường: diagram dựng lại qua liveTrack; test route (có đích) vẫn overlay */
+    const src = (recording && recPts.length >= 1) ? recPts : (c.vetRieng || []);
+    if (src.length >= 2){
+      const pts = src.map(p => { const [x, z] = gpsToXZ(c, p.lat, p.lon); return project(x, z, heightAt(x, z) + HOFF); });
+      const d = 'M' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L');
+      el('path', {d, fill:'none', stroke:VET_THAT, 'stroke-width':4.2, 'stroke-linecap':'round', 'stroke-linejoin':'round', opacity:.3, filter:'url(#glow)'}, gLive);
+      el('path', {d, fill:'none', stroke:VET_THAT, 'stroke-width':2.2, 'stroke-linecap':'round', 'stroke-linejoin':'round', opacity:.95}, gLive);
+    }
+    if (recording && src.length >= 1){
+      const last = src[src.length-1];
+      const [x, z] = gpsToXZ(c, last.lat, last.lon);
+      const [hx, hy] = project(x, z, heightAt(x, z) + HOFF);
+      const acc = last.acc || 15;
+      const p1 = gpsToXZ(c, last.lat + acc/110574, last.lon);
+      const rPx = clamp(Math.hypot(p1[0]-x, p1[1]-z) * 30, 6, 150);   /* vòng sai số theo mét → px (S=30) */
+      const mau = gpsYeu ? '#9AA0A6' : VET_THAT;
+      el('circle', {cx:hx, cy:hy, r:rPx, fill: gpsYeu ? 'rgba(154,160,166,.10)' : 'rgba(255,45,45,.12)', stroke:mau, 'stroke-width':1, opacity:.55}, gLive);
+      el('circle', {cx:hx, cy:hy, r:6, fill:mau, filter:'url(#glow)'}, gLive);
+      el('circle', {cx:hx, cy:hy, r:2.6, fill:'#fff'}, gLive);
+    }
   }
-  function renderScene(){ renderContours(); renderRoute(); renderProgress(); renderVetRieng(); renderPins(); applyView(); }
+  /* vệt MÔ PHỎNG (tím, đứt nét) — tách hẳn khỏi vệt đỏ; chỉ khi đang demo */
+  function renderSim(){
+    if (!gSim) return;
+    gSim.innerHTML = '';
+    if (!demoTimer || simPts.length < 2) return;
+    const c = cur();
+    const pts = simPts.map(p => { const [x, z] = gpsToXZ(c, p.lat, p.lon); return project(x, z, heightAt(x, z) + HOFF); });
+    const d = 'M' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L');
+    el('path', {d, fill:'none', stroke:VET_SIM, 'stroke-width':2.2, 'stroke-linecap':'round', 'stroke-linejoin':'round', 'stroke-dasharray':'2 6', opacity:.9}, gSim);
+    const hd = pts[pts.length-1];
+    el('circle', {cx:hd[0], cy:hd[1], r:5, fill:VET_SIM, opacity:.9}, gSim);
+  }
+  function renderScene(){ renderContours(); renderRoute(); renderProgress(); renderSim(); renderVetRieng(); renderPins(); applyView(); }
 
   /* ---------- mặt cắt độ cao ---------- */
   const profSvg = document.getElementById('profileSvg');
@@ -2521,9 +2569,12 @@
     rpSplits.innerHTML = ''; rpProfile.innerHTML = '';
     [rpCao, rpToc, rpTB, rpHuong, rpGPS, rpLeo].forEach(x => x.textContent = '—');
     recPanel.hidden = false;
-    const samMode = !c.custom;   /* cung mẫu → bám trên sơ đồ contour 2D; tự tạo/luyện tập → bản đồ GPS thật */
+    /* cung mẫu HOẶC tuyến test (có đích) → Sơ đồ 2D + nút chuyển; tự đi thường → bản đồ GPS thật */
+    const samMode = !c.custom || !!c.dich;
     moTrang('route');
     document.body.classList.add('rec-full');
+    simPts = []; gpsYeu = false;
+    capNhatTuyenMau();               /* dựng tuyến mẫu + mốc + chiều dài để ướm ngay từ điểm đầu */
     const vs = document.getElementById('viewSwap');
     if (samMode){
       showMap(false); zoom = 1.55; applyView();
@@ -2532,7 +2583,7 @@
       showMap(true); fitMapFull();
       vs.hidden = true;
     }
-    followMe = true; lastB = 0; navIdx = 0; if (navHudEl) navHudEl.hidden = true;
+    followMe = true; lastB = 0; if (navHudEl) navHudEl.hidden = true;
     /* GPS chậm ≠ không có GPS: báo trước, chỉ tự demo với cung mẫu và sau 20s không có tín hiệu */
     demoArm = setTimeout(() => {
       if (!recording || recPts.length) return;
@@ -2561,11 +2612,26 @@
     recWatch = navigator.geolocation.watchPosition(pos => {
       const { latitude, longitude, altitude, accuracy } = pos.coords;
       lastFixT = Date.now(); gpsLostWarnT = 0;
-      const truocDo = recPts[recPts.length - 1];
-      /* tiết kiệm pin + bộ nhớ: đứng yên (<5 m và <30 s so với điểm trước) thì không ghi thêm điểm */
-      if (truocDo && haversine(truocDo, {lat:latitude, lon:longitude}) < 0.005 && Date.now() - truocDo.t < 30000){
-        mapLive(accuracy); updateRecUI(accuracy); capNhatRecPanel(pos);
+      const raw = {lat: latitude, lon: longitude};
+      /* LỌC GPS (chuyên gia dẫn đoàn): sai số >50m → ĐÔNG CỨNG chấm cũ (xám), không nhảy loạn gây rẽ nhầm */
+      if (accuracy > 50){
+        gpsYeu = true;
+        renderScene();
+        if (mapOn) setBanner('GPS yếu ±' + Math.round(accuracy) + 'm — giữ vị trí, chờ tín hiệu tốt hơn', 'wait');
+        updateRecUI(accuracy);
         return;
+      }
+      gpsYeu = false;
+      const truocDo = recPts[recPts.length - 1];
+      if (truocDo){
+        const dt = Math.max(1, (Date.now() - truocDo.t)/1000);
+        /* bỏ fix nhảy phi lý (>20 m/s ≈ 72 km/h — chắc chắn nhiễu GPS) */
+        if (haversine(truocDo, raw)*1000/dt > 20){ updateRecUI(accuracy); return; }
+        /* đứng yên (<5 m và <30 s) → tiết kiệm pin, không ghi thêm điểm */
+        if (haversine(truocDo, raw) < 0.005 && Date.now() - truocDo.t < 30000){
+          renderScene(); mapLive(accuracy); updateRecUI(accuracy); capNhatRecPanel(pos);
+          return;
+        }
       }
       recPts.push({ lat:latitude, lon:longitude, ele: (typeof altitude === 'number' ? altitude : undefined), t: Date.now(), acc: accuracy });
       /* autosave 30s: sập nguồn/crash không mất track (khôi phục lúc mở lại app) */
@@ -2573,16 +2639,19 @@
         luuBkT = Date.now();
         try{ localStorage.setItem('mt-recbk', JSON.stringify({t0: recT0, cungId, pts: recPts.slice(-2500)})); }catch(err){}
       }
-      if (recPts.length >= 2 && !document.hidden){ if (cur().custom) liveTrack(); else renderVetRieng(); }
+      if (!document.hidden){ if (cur().custom && !cur().dich){ if (recPts.length >= 2) liveTrack(); } else renderVetRieng(); }
       mapLive(accuracy);
       updateRecUI(accuracy);
       capNhatRecPanel(pos);
-      if (demoTimer){ clearInterval(demoTimer); demoTimer = null; }
+      /* có GPS thật rồi → dừng demo, xóa vệt tím (đỏ không lẫn giả lập) */
+      if (demoTimer){ clearInterval(demoTimer); demoTimer = null; simPts = []; clearSimLayers(); }
       if (demoArm){ clearTimeout(demoArm); demoArm = null; }
       const fx = {lat:latitude, lon:longitude};
-      navUpdate(fx);
-      if (!cur().custom && !mapOn) setProgress(tienTheoGuide());
-      if (recPts.length >= 2){ const a = recPts[recPts.length-2]; if (haversine(a, fx) > 0.002) applyRot(lastB = bearing(a, fx)); }
+      /* hướng mũi chỉ tính khi đã đi >8m (đứng yên GPS không biết hướng — chuyên gia) */
+      if (recPts.length >= 2){ const a = recPts[recPts.length-2]; if (haversine(a, fx) > 0.008) applyRot(lastB = bearing(a, fx)); }
+      navUpdate(fx, accuracy);
+      capNhatDich(fx);                               /* tuyến test: đếm khoảng cách + báo tới đích */
+      if (!mapOn) setProgress(guideTotal > 0 ? uomCum/guideTotal : tienTheoGuide());
     }, err => {
       /* AN TOÀN: KHÔNG tự chạy demo khi GPS lỗi — vị trí giả nguy hiểm hơn không có vị trí */
       canhBaoRung(2);
@@ -2603,6 +2672,8 @@
     if (mapModeEl) mapModeEl.style.height = '';
     const rmEl = document.getElementById('realMap'); if (rmEl) rmEl.style.transform = '';
     if (navHudEl) navHudEl.hidden = true;
+    if (uomHudEl) uomHudEl.hidden = true;
+    simPts = []; gpsYeu = false; clearSimLayers();
     if (map) requestAnimationFrame(() => map.invalidateSize());
     if (recWatch != null){ navigator.geolocation.clearWatch(recWatch); recWatch = null; }
     if (recTimer){ clearInterval(recTimer); recTimer = null; }
@@ -2656,11 +2727,15 @@
      ============================================================ */
   let map = null, mapOn = false;
   let lySaved = [], lyLive = null, lyLiveGlow = null, liveMk = null, progMk = null;
+  let lySim = null, lySimGlow = null;              /* layer vệt mô phỏng (tách khỏi vệt thật) */
+  let simPts = [], gpsYeu = false;                 /* điểm demo riêng; cờ GPS mờ (đông cứng chấm) */
   const sceneWrap  = document.querySelector('.scene-wrap');
   const mapModeEl  = document.getElementById('mapMode');
   const gpsBanner  = document.getElementById('gpsBanner');
   const mTimeEl = document.getElementById('mTime'), mPaceEl = document.getElementById('mPace'), mDistEl = document.getElementById('mDist');
   const CAM_STRAVA = '#FC5200';
+  const VET_THAT = '#FF2D2D';                       /* vệt GPS THẬT — đỏ đậm (vị trí bạn) */
+  const VET_SIM  = '#B07DEB';                       /* vệt MÔ PHỎNG — tím nhạt, đứt nét (chỉ khi demo) */
 
   function setBanner(txt, cls){ gpsBanner.textContent = txt; gpsBanner.className = 'gps-banner' + (cls ? ' ' + cls : ''); }
   function fmtTime(secs){
@@ -2680,7 +2755,7 @@
     map = L.map('realMap', {zoomControl:false, attributionControl:true});
     map.attributionControl.setPrefix(false);
     /* URL chính tắc (subdomain a cố định, không @2x) để trùng khớp gói tile offline trong Cache API */
-    taoBaseLayer();
+    L.tileLayer(CARTO_URL, {maxZoom:20, maxNativeZoom:19, attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(map);
     /* Chủ quyền biển đảo Việt Nam — nhãn luôn hiển thị, không phụ thuộc tile */
     [
       {ll:[16.50, 112.00], ten:'QĐ. Hoàng Sa<small>Đà Nẵng, Việt Nam</small>'},
@@ -2694,12 +2769,6 @@
     map.on('dragstart', () => { followMe = false; });
     document.getElementById('mapZin').addEventListener('click', () => map.zoomIn());
     document.getElementById('mapZout').addEventListener('click', () => map.zoomOut());
-    document.getElementById('mapLayer').addEventListener('click', () => {
-      lopHienTai = lopHienTai === 'carto' ? 'topo' : 'carto';
-      luuJSON('mt-layer', lopHienTai);
-      taoBaseLayer();
-      setBanner('Lớp bản đồ: ' + LOP_BD[lopHienTai].ten, 'wait');
-    });
     if (window.MountainTracker) MountainTracker.map = map;   /* expose để debug/tích hợp */
   }
 
@@ -2710,13 +2779,9 @@
      tải song song 6, pad bbox 2 km. Metadata: localStorage 'mt-goitile'.
      ============================================================ */
   const TILE_CACHE = 'porter-tiles-v1';
-  /* 2 lớp nền: CARTO tối (mặc định) + OpenTopoMap địa hình (đường đồng mức — tile OSM vùng núi trắng trơn) */
-  const LOP_BD = {
-    carto:{url:'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', ten:'Bản đồ tối', at:'&copy; OpenStreetMap &copy; CARTO', natZ:19},
-    topo: {url:'https://a.tile.opentopomap.org/{z}/{x}/{y}.png',           ten:'Địa hình',   at:'&copy; OpenStreetMap &copy; OpenTopoMap (CC-BY-SA)', natZ:15}
-  };
-  let lopHienTai = 'carto';   /* đọc lựa chọn đã lưu ở init (layJSON khai báo phía dưới) */
-  const tileURL = (t, lop) => LOP_BD[lop || 'carto'].url.replace('{z}', t.z).replace('{x}', t.x).replace('{y}', t.y);
+  /* 1 lớp nền duy nhất: CARTO tối (URL chính tắc — subdomain a, không @2x — để khớp gói offline) */
+  const CARTO_URL = 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+  const tileURL = t => CARTO_URL.replace('{z}', t.z).replace('{x}', t.x).replace('{y}', t.y);
   function tileXY(lat, lon, z){
     const n = 2 ** z, la = lat * Math.PI/180;
     return { x: Math.max(0, Math.min(n-1, Math.floor((lon + 180)/360 * n))),
@@ -2760,7 +2825,7 @@
     if (!g) return;
     try{
       const cache = await caches.open(TILE_CACHE);
-      await Promise.all(dsTile(g.bb, g.zMin, g.zMax).flatMap(t => [cache.delete(tileURL(t, 'carto')), cache.delete(tileURL(t, 'topo'))]));
+      await Promise.all(dsTile(g.bb, g.zMin, g.zMax).map(t => cache.delete(tileURL(t))));
     }catch(err){}
     delete meta[id];
     luuJSON('mt-goitile', meta);
@@ -2783,9 +2848,7 @@
     tileDangTai = true;
     let done = 0, fail = 0, bytes = 0;
     const tiles = kq.tiles;
-    /* tải CẢ 2 lớp (tối + địa hình) để đổi lớp vẫn chạy offline */
-    const hang = [];
-    tiles.forEach(t => { hang.push(tileURL(t, 'carto')); hang.push(tileURL(t, 'topo')); });
+    const hang = tiles.map(t => tileURL(t));
     const tongURL = hang.length;
     const tienDo = () => { if (opts.onTien) opts.onTien(done, tongURL, bytes, fail); };
     try{
@@ -2824,7 +2887,7 @@
     const g = layGoiTile()[c.id];
     if (g){ dlTileBtn.textContent = '🗺 Bản đồ offline đã tải (' + g.soTile + ' ô) — bấm để tải lại'; return; }
     const kq = tileChoCung(c);
-    const mb = kq && !kq.qua ? (kq.tiles.length * 2 * 22 / 1024).toFixed(1).replace('.', ',') : null;   /* ×2 lớp (tối + địa hình) */
+    const mb = kq && !kq.qua ? (kq.tiles.length * 22 / 1024).toFixed(1).replace('.', ',') : null;
     dlTileBtn.textContent = mb ? '⬇ Tải bản đồ offline (~' + mb + ' MB)' : '⬇ Tải bản đồ offline';
   }
   const tileProgMsg = (d, t, b, f) => {
@@ -2880,13 +2943,6 @@
       if (g) dlTileBtn.textContent = '🗺 Bản đồ offline đã tải (' + g.soTile + ' ô) — bấm để tải lại';
     });
   });
-  let baseLayer = null;
-  function taoBaseLayer(){
-    if (baseLayer) map.removeLayer(baseLayer);
-    const L0 = LOP_BD[lopHienTai];
-    /* maxNativeZoom = mức có tile thật (gói offline z12–15) — phóng to hơn thì upscale, không trắng */
-    baseLayer = L.tileLayer(L0.url, {maxZoom:20, maxNativeZoom:L0.natZ, attribution:L0.at}).addTo(map);
-  }
   function clearSavedLayers(){
     lySaved.forEach(l => map.removeLayer(l)); lySaved = [];
     if (progMk){ map.removeLayer(progMk); progMk = null; }
@@ -2895,14 +2951,27 @@
     if (lyLiveGlow){ map.removeLayer(lyLiveGlow); lyLiveGlow = null; }
     if (lyLive){ map.removeLayer(lyLive); lyLive = null; }
   }
+  function clearSimLayers(){
+    if (lySimGlow){ map.removeLayer(lySimGlow); lySimGlow = null; }
+    if (lySim){ map.removeLayer(lySim); lySim = null; }
+  }
+  /* vệt mô phỏng trên Leaflet — tím đứt nét, tách hẳn vệt đỏ */
+  function mapSimLive(){
+    if (!map || !mapOn || simPts.length < 2) return;
+    const pts = simPts.map(p => [p.lat, p.lon]);
+    if (!lySim){
+      lySimGlow = L.polyline(pts, {color:VET_SIM, weight:7, opacity:.20, lineJoin:'round'}).addTo(map);
+      lySim = L.polyline(pts, {color:VET_SIM, weight:3, opacity:.85, lineJoin:'round', dashArray:'2 7'}).addTo(map);
+    } else { lySimGlow.setLatLngs(pts); lySim.setLatLngs(pts); }
+  }
   /* vẽ tuyến của cung để bám theo: GPX thật (nét liền) hoặc tuyến minh họa suy từ sơ đồ (nét đứt) — màu lime; cung Tự đi giữ vệt cam */
   function syncMapRoute(fit){
     if (!map) return;
     clearSavedLayers();
     const c = cur();
-    guideLL = geoRouteOf(c); buildStops(c);
+    guideLL = geoRouteOf(c); buildStops(c); buildGuideCum();
     const pts = guideLL.map(p => [p.lat, p.lon]);
-    const mau = c.custom ? CAM_STRAVA : '#C9E265';
+    const mau = '#C9E265';                            /* tuyến mẫu LUÔN lime — vệt GPS thật màu đỏ vẽ đè để "ướm" */
     const that = (c.geoTrack || []).length >= 2;
     if (pts.length >= 2){
       lySaved.push(L.polyline(pts, {color:mau, weight:9, opacity:.22, lineJoin:'round'}).addTo(map));
@@ -3007,8 +3076,8 @@
     const pts = recPts.map(p => [p.lat, p.lon]);
     if (pts.length >= 2){
       if (!lyLiveGlow){
-        lyLiveGlow = L.polyline(pts, {color:CAM_STRAVA, weight:9, opacity:.28, lineJoin:'round'}).addTo(map);
-        lyLive = L.polyline(pts, {color:CAM_STRAVA, weight:3.5, opacity:.95, lineJoin:'round'}).addTo(map);
+        lyLiveGlow = L.polyline(pts, {color:VET_THAT, weight:9, opacity:.30, lineJoin:'round'}).addTo(map);
+        lyLive = L.polyline(pts, {color:VET_THAT, weight:4, opacity:.98, lineJoin:'round'}).addTo(map);
       } else { lyLiveGlow.setLatLngs(pts); lyLive.setLatLngs(pts); }
     }
     const last = pts[pts.length-1];
@@ -3076,31 +3145,101 @@
     el.style.transform = 'rotate(' + mapRot.toFixed(1) + 'deg) scale(1.35)';
   }
   const fmtKm = d => d < 1 ? Math.round(d*1000) + ' m' : d.toFixed(1).replace('.', ',') + ' km';
-  function navUpdate(fix){
+
+  /* ============================================================
+     ƯỚM HƯỚNG ĐI (theo tư vấn chuyên gia dẫn đoàn thực địa):
+     - cross-track CÓ DẤU (lệch trái/phải), không phải khoảng cách tới điểm.
+     - ngưỡng phân cấp đúng ≤30m / chú ý 30–60m / lệch >60m, có TRỄ (hysteresis),
+       nới theo sai số GPS; chỉ RUNG khi VỪA chuyển sang lệch (không lặp đều).
+     - cần ≥3 fix liên tục mới báo lệch (bỏ nhiễu 1 fix).
+     ============================================================ */
+  let guideCum = [], guideTotal = 0, uomCum = 0;
+  let uomTrangThai = 'dung', uomLechCount = 0, uomDungCount = 0;
+  function buildGuideCum(){
+    guideCum = [0]; guideTotal = 0;
+    for (let i = 1; i < guideLL.length; i++){ guideTotal += haversine(guideLL[i-1], guideLL[i]) * 1000; guideCum.push(guideTotal); }
+  }
+  /* dựng tuyến mẫu + mốc + chiều dài lũy kế — gọi khi vào chế độ ghi (cả Sơ đồ 2D lẫn Bản đồ) */
+  let uomFirst = true;
+  function capNhatTuyenMau(){
     const c = cur();
-    if (c.custom || guideLL.length < 2){ if (navHudEl) navHudEl.hidden = true; return; }
-    /* tiến trình đơn điệu: chỉ tìm nearest trong cửa sổ từ navIdx tiến lên (tránh khớp vào đoạn về của track out-and-back) */
-    let best = 1e9, bi = navIdx;
-    const toi = Math.min(guideLL.length - 1, navIdx + 25);
-    for (let i = navIdx; i <= toi; i++){ const d = haversine(fix, guideLL[i]); if (d < best){ best = d; bi = i; } }
-    navIdx = bi;
-    if (best > 0.05){
-      if (Date.now() - offWarnT > 4000){ offWarnT = Date.now(); canhBaoRung(2); setBanner('Lệch tuyến ~' + Math.round(best*1000) + ' m — quay lại vệt lime', 'err'); }
+    guideLL = geoRouteOf(c); buildStops(c); buildGuideCum();
+    navIdx = 0; uomCum = 0; uomTrangThai = 'dung'; uomLechCount = 0; uomDungCount = 0; uomFirst = true;
+  }
+  const toMet = (P, ref) => { const k = Math.cos(ref.lat*Math.PI/180)*111320; return [(P.lon-ref.lon)*k, (P.lat-ref.lat)*110574]; };
+  /* chiếu P lên đoạn A→B: perp(m) = cự ly vuông góc; cross>0 = P lệch TRÁI theo chiều đi */
+  function chieuDoan(P, A, B){
+    const p = toMet(P, A), b = toMet(B, A);
+    const len2 = b[0]*b[0] + b[1]*b[1];
+    let t = len2 > 0 ? (p[0]*b[0] + p[1]*b[1]) / len2 : 0; t = clamp(t, 0, 1);
+    const perp = Math.hypot(p[0]-b[0]*t, p[1]-b[1]*t);
+    return { t, perp, cross: b[0]*p[1] - b[1]*p[0] };
+  }
+  function uomVao(fix){
+    if (guideLL.length < 2) return null;
+    let best = null;
+    const quet = (i) => {
+      const r = chieuDoan(fix, guideLL[i], guideLL[i+1]);
+      const cum = guideCum[i] + r.t*(guideCum[i+1]-guideCum[i]);
+      if (!best || r.perp < best.perp) best = { i, perp: r.perp, cross: r.cross, cum };
+    };
+    /* fix ĐẦU (hoặc mất bám): quét TOÀN tuyến để snap đúng vị trí; sau đó bám cửa sổ đơn điệu */
+    if (uomFirst){
+      for (let i = 0; i < guideLL.length-1; i++) quet(i);
+      uomCum = best.cum; uomFirst = false;
+    } else {
+      for (let i = 0; i < guideLL.length-1; i++){ if (guideCum[i+1] < uomCum-60 || guideCum[i] > uomCum+250) continue; quet(i); }
+      if (!best) for (let i = 0; i < guideLL.length-1; i++) quet(i);   /* ra ngoài cửa sổ → quét lại toàn tuyến */
+      if (best.cum > uomCum) uomCum = best.cum;                        /* chỉ tiến, không lùi (đơn điệu) */
     }
-    const nx = guideStops.find(w => w.idx > bi + 1);
-    if (navHudEl){
-      navHudEl.hidden = false;
-      if (nx){
-        nhTen.textContent = nx.ten;
-        nhDist.textContent = fmtKm(haversine(fix, nx.ll)) + ' · điểm kế tiếp';
-        nhArrow.style.transform = 'rotate(' + ((bearing(fix, nx.ll) + mapRot)).toFixed(0) + 'deg)';
-      } else {
-        const cuoi = guideLL[guideLL.length-1];
-        nhTen.textContent = 'Kết thúc tuyến';
-        nhDist.textContent = fmtKm(haversine(fix, cuoi)) + ' · còn lại';
-        nhArrow.style.transform = 'rotate(' + ((bearing(fix, cuoi) + mapRot)).toFixed(0) + 'deg)';
+    const nx = guideStops.find(w => w.idx > best.i + 1);
+    return {
+      perp: best.perp, ben: best.perp < 12 ? 'giua' : (best.cross > 0 ? 'trai' : 'phai'),
+      bearingGuide: bearing(guideLL[best.i], guideLL[best.i+1]),
+      progress: guideTotal > 0 ? clamp(uomCum/guideTotal, 0, 1) : 0,
+      nextStop: nx || null, distNext: haversine(fix, nx ? nx.ll : guideLL[guideLL.length-1])
+    };
+  }
+  const uomHudEl = document.getElementById('uomHud');
+  function navUpdate(fix, accuracy){
+    if (guideLL.length < 2){ if (uomHudEl) uomHudEl.hidden = true; return; }
+    const r = uomVao(fix);
+    if (!r){ if (uomHudEl) uomHudEl.hidden = true; return; }
+    const acc = (typeof accuracy === 'number' && accuracy > 0) ? accuracy : 15;
+    const noi = Math.max(0, acc - 30);                 /* GPS mờ thì nới ngưỡng, tránh mắng oan */
+    const nLech = 60 + noi, nVe = 40 + noi, nChuy = 30 + noi/2;
+    let muc;
+    if (r.perp > nLech) muc = 'lech';
+    else if (r.perp < nChuy) muc = 'dung';
+    else if (r.perp < nVe) muc = 'chuy';
+    else muc = uomTrangThai === 'lech' ? 'lech' : 'chuy';   /* vùng đệm giữ trạng thái cũ */
+    if (muc === 'lech'){ uomLechCount++; uomDungCount = 0; } else { uomDungCount++; uomLechCount = 0; }
+    let doiSangLech = false;
+    if (uomLechCount >= 3 && uomTrangThai !== 'lech'){ uomTrangThai = 'lech'; doiSangLech = true; }
+    else if (uomTrangThai === 'lech' && uomDungCount >= 2 && r.perp < nVe){ uomTrangThai = muc === 'chuy' ? 'chuy' : 'dung'; }
+    else if (uomTrangThai !== 'lech' && muc !== 'lech') uomTrangThai = muc;   /* đúng↔chú ý đổi tự do; vào 'lệch' PHẢI qua bộ đếm 3 fix */
+    /* CHỈ rung + tiếng khi VỪA chuyển sang lệch — không lặp đều đặn (chống phản xạ tắt não) */
+    if (doiSangLech){ canhBaoRung(2); if (mapOn) setBanner('⚠ Lệch tuyến ~' + Math.round(r.perp) + 'm — ' + (r.ben === 'trai' ? 'dịch phải' : 'dịch trái'), 'err'); }
+    capNhatUomHud(r);
+  }
+  function capNhatUomHud(r){
+    if (!uomHudEl) return;
+    uomHudEl.hidden = false;
+    uomHudEl.className = 'uom-hud uh-' + uomTrangThai;
+    /* mũi tên chỉ HƯỚNG TUYẾN cần đi (tương đối hướng đang đi); trên Bản đồ cộng mapRot */
+    document.getElementById('uhArrow').style.transform = 'rotate(' + (r.bearingGuide - lastB + (mapOn ? mapRot : 0)).toFixed(0) + 'deg)';
+    const tt = document.getElementById('uhTT'), ct = document.getElementById('uhCT');
+    if (uomTrangThai === 'lech'){
+      if (r.perp < 30){ tt.textContent = 'Đang về tuyến…'; ct.textContent = 'Giữ hướng này'; }
+      else {
+        tt.textContent = 'LỆCH ' + (r.ben === 'trai' ? 'TRÁI' : 'PHẢI') + ' ~' + Math.round(r.perp) + ' m';
+        ct.textContent = (r.ben === 'trai' ? '→ DỊCH PHẢI' : '← DỊCH TRÁI') + ' để về tuyến';
       }
+    } else {
+      tt.textContent = uomTrangThai === 'chuy' ? 'Hơi lệch — chú ý hướng' : '✓ Đang bám đúng tuyến';
+      ct.textContent = (r.nextStop ? r.nextStop.ten + ' · ' + fmtKm(r.distNext) : 'Còn ' + fmtKm(r.distNext) + ' tới đích');
     }
+    document.getElementById('uhPct').textContent = Math.round(r.progress*100) + '%';
   }
   function fitMapFull(){
     const app = document.getElementById('app');
@@ -3108,24 +3247,25 @@
     requestAnimationFrame(() => { if (map) map.invalidateSize(); });
   }
   /* Không có GPS thật (desktop/demo): chấm chạy dọc tuyến mẫu, vẫn ghi như thật */
+  /* MÔ PHỎNG (chỉ xem thử trên máy) — vệt TÍM riêng qua simPts, KHÔNG lẫn vào recPts/vệt đỏ.
+     Vẫn chạy thuật toán ướm để thử cảnh báo lệch (thêm nhiễu ±22m mô phỏng lệch). */
   function startDemoFollow(){
     if (demoTimer || !recording) return;
     if (guideLL.length < 2){ setBanner('Không có tuyến mẫu để demo.', 'err'); return; }
-    setBanner('GPS demo — bám theo tuyến mẫu', 'wait');
-    setStatus('Không có GPS thật — demo bám theo GPX mẫu của cung.');
-    demoF = 0;
+    setBanner('MÔ PHỎNG (tím) — bám theo tuyến mẫu', 'wait');
+    setStatus('Không có GPS thật — mô phỏng chạy dọc tuyến mẫu (vị trí GIẢ).');
+    demoF = 0; simPts = [];
     demoTimer = setInterval(() => {
       if (!recording){ clearInterval(demoTimer); demoTimer = null; return; }
       demoF = Math.min(1, demoF + 1/240);
       const i = Math.min(guideLL.length - 1, Math.floor(demoF * (guideLL.length - 1)));
-      const j = () => (Math.random() - .5) * 0.00004;
+      const j = () => (Math.random() - .5) * 0.0004;   /* ±~22m để mô phỏng lệch, thử cảnh báo */
       const fx = {lat: guideLL[i].lat + j(), lon: guideLL[i].lon + j()};
-      recPts.push({lat:fx.lat, lon:fx.lon, ele:undefined, t:Date.now()});
-      if (recPts.length >= 2){ if (cur().custom) liveTrack(); else renderVetRieng(); }
-      mapLive(8); updateRecUI(8); navUpdate(fx);
-      if (!cur().custom && !mapOn) setProgress(tienTheoGuide());
-      if (recPts.length >= 2){ const a = recPts[recPts.length-2]; if (haversine(a, fx) > 0.001) applyRot(lastB = bearing(a, fx)); }
-      if (demoF >= 1){ clearInterval(demoTimer); demoTimer = null; setBanner('Demo: đã đi hết tuyến mẫu — bấm "Dừng & lưu"'); }
+      simPts.push({lat:fx.lat, lon:fx.lon, t:Date.now()});
+      renderSim(); mapSimLive(); updateRecUI(8); navUpdate(fx, 8);
+      if (!mapOn) setProgress(guideTotal > 0 ? uomCum/guideTotal : demoF);
+      if (simPts.length >= 2){ const a = simPts[simPts.length-2]; if (haversine(a, fx) > 0.001) applyRot(lastB = bearing(a, fx)); }
+      if (demoF >= 1){ clearInterval(demoTimer); demoTimer = null; setBanner('Mô phỏng: hết tuyến mẫu — bấm "Dừng & lưu"'); }
     }, 1000);
   }
   document.getElementById('mapHead').addEventListener('click', function(){
@@ -3197,16 +3337,23 @@
     apDungKhuVuc({ten, gps:{lat, lon}});
     taiGoiTile('custom', {onTien: (d, t, b, f) => { tileProgMsg(d, t, b, f); if (d === t) setStatus('Đã lưu khu vực "' + ten + '" + ' + (t - f) + ' ô bản đồ offline.'); }});
   });
-  /* tuyến test GPS đô thị: đích = 187 Giảng Võ, Hà Nội (tòa D2/Cục thuế — tọa độ OSM Nominatim) */
+  /* tuyến test GPS đô thị: nhà (68/466 Ngô Gia Tự) → 187 Giảng Võ. Tuyến mẫu = đường bộ THẬT (OSRM,
+     12,7km) để "ướm" hướng đi; đích = 187 Giảng Võ (OSM Nominatim). */
   const DICH_GV = {lat: 21.02584, lon: 105.82217, ten: '187 Giảng Võ'};
+  const ROUTE_GV = [[21.0717,105.90502],[21.07122,105.90475],[21.07075,105.90429],[21.07032,105.90381],[21.06997,105.90348],[21.06968,105.90322],[21.06982,105.90224],[21.06975,105.90192],[21.06931,105.9015],[21.06697,105.89923],[21.06573,105.89804],[21.06474,105.89712],[21.06341,105.89586],[21.06287,105.89534],[21.06274,105.89521],[21.06163,105.89415],[21.06145,105.89397],[21.06073,105.89324],[21.06045,105.89296],[21.05981,105.89232],[21.05952,105.89203],[21.05772,105.89024],[21.0576,105.89014],[21.05742,105.88998],[21.05612,105.88891],[21.05584,105.88867],[21.05568,105.88847],[21.05555,105.88823],[21.05551,105.88807],[21.05543,105.88793],[21.05521,105.88776],[21.05502,105.88774],[21.05467,105.88766],[21.05419,105.88728],[21.05381,105.88699],[21.05251,105.88597],[21.05106,105.8848],[21.05053,105.88437],[21.05005,105.88395],[21.04967,105.88354],[21.04914,105.88281],[21.04829,105.88108],[21.04763,105.87969],[21.047,105.87841],[21.04675,105.87792],[21.04588,105.87614],[21.04539,105.87513],[21.04436,105.87301],[21.0442,105.87271],[21.04392,105.87227],[21.04326,105.87147],[21.04241,105.87064],[21.04174,105.86995],[21.04113,105.8691],[21.04015,105.86667],[21.03966,105.86557],[21.03547,105.85493],[21.03558,105.85472],[21.03559,105.85453],[21.0355,105.85441],[21.03532,105.85438],[21.03515,105.85444],[21.03495,105.85459],[21.0346,105.85493],[21.03271,105.85589],[21.03151,105.85644],[21.03079,105.85678],[21.02949,105.85738],[21.02913,105.85754],[21.02797,105.85812],[21.02695,105.85862],[21.02601,105.85912],[21.02537,105.85925],[21.02508,105.85925],[21.02485,105.85888],[21.02473,105.85826],[21.02458,105.85754],[21.02452,105.85717],[21.02451,105.85704],[21.02444,105.85697],[21.02472,105.85586],[21.02495,105.85501],[21.0254,105.85341],[21.02577,105.85231],[21.02601,105.85147],[21.02637,105.8502],[21.02659,105.84942],[21.02697,105.84805],[21.02708,105.84767],[21.02754,105.84599],[21.02799,105.84436],[21.02818,105.84398],[21.02828,105.84365],[21.02839,105.84337],[21.02882,105.84295],[21.02948,105.8423],[21.02989,105.84189],[21.03037,105.84139],[21.03076,105.84079],[21.03113,105.83884],[21.0312,105.8385],[21.0316,105.83638],[21.03171,105.83584],[21.03182,105.83524],[21.03199,105.8344],[21.03209,105.83379],[21.03223,105.83311],[21.03245,105.83196],[21.03257,105.8313],[21.03273,105.82982],[21.03262,105.82927],[21.03247,105.82921],[21.03237,105.82927],[21.03187,105.8299],[21.03166,105.82984],[21.03138,105.82975],[21.03115,105.82947],[21.03045,105.82855],[21.03011,105.82807],[21.02957,105.82735],[21.02955,105.82724],[21.02943,105.82698],[21.02875,105.82602],[21.02841,105.82551],[21.0278,105.82474],[21.02639,105.82306],[21.02574,105.82227]];
   document.getElementById('testGVBtn').addEventListener('click', () => {
     daToiDich = false;
-    apDungKhuVuc({ten: 'Test GPS — 187 Giảng Võ', gps: {lat: DICH_GV.lat, lon: DICH_GV.lon}, dich: DICH_GV});
+    apDungKhuVuc({ten: 'Test GPS — 187 Giảng Võ', gps: {lat: ROUTE_GV[0][0], lon: ROUTE_GV[0][1]}, dich: DICH_GV});
+    const c = CUNG.custom;
+    c.fitTrack = true;
+    napTrack('custom', ROUTE_GV.map(p => ({lat:p[0], lon:p[1]})));   /* geoTrack = đường bộ thật → tuyến mẫu để ướm */
+    c.dich = DICH_GV; c.khuVuc = 'Test GPS — 187 Giảng Võ';
+    c.viTri = 'Tuyến test · nhà (Ngô Gia Tự) → 187 Giảng Võ · 12,7 km';
     chonCung('custom', true);
     moTrang('route');
     if (mapOn && map) syncMapRoute();
     taiGoiTile('custom', {onTien: tileProgMsg});
-    setStatus('🎯 Đã đặt đích 187 Giảng Võ. Ra ngoài trời, bấm "Bắt đầu hành trình" rồi đi tới đích — banner sẽ đếm khoảng cách, tới nơi (<60 m) máy rung + báo thành công.');
+    setStatus('🎯 Tuyến test đã sẵn sàng: nhà → 187 Giảng Võ. Ra ngoài trời, bấm "Bắt đầu hành trình" → chọn "Sơ đồ 2D": chấm đỏ = bạn, vạch lime = đường nên đi. Lệch >60m sẽ rung + nhắc "dịch trái/phải". Tới đích (<60m) máy rung mừng.');
   });
 
   /* ---------- SOS khẩn cấp: tọa độ + copy + SMS + số cứu hộ theo cung ---------- */
@@ -4519,6 +4666,7 @@
     napTrack, napGPX, napKML, ganAnh, themCung, chonCung, moTrang, moNhatKy, moAdmin, dsDiem,
     taiGoiTile, xoaGoiTile, dsGoiTile: layGoiTile,     /* gói bản đồ offline */
     theShare: luuTheShare, moSOS,                      /* thẻ chia sẻ + SOS */
+    _uom: { capNhatTuyenMau, uomVao, navUpdate, tt: () => uomTrangThai, guideLen: () => guideLL.length },
     dsCung: () => THU_TU.slice(), cungHienTai: () => CUNG[cungId],
     /* demo luồng hoàn thành: nạp track GPX của cung làm hành trình giả → chúc mừng + huy hiệu */
     demoHoanThanh: id => {
@@ -4642,7 +4790,6 @@
     });
   }
 
-  lopHienTai = LOP_BD[layJSON('mt-layer', 'carto')] ? layJSON('mt-layer', 'carto') : 'carto';
   napGPXEmbed();
   apDungChuan();
   khoiPhucLocal();
