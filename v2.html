@@ -145,7 +145,8 @@
   .zoomctl button:focus-visible{outline:2px solid var(--go);outline-offset:2px}
   .zoomctl .z-lvl{font-size:9px;font-weight:700;color:var(--mute);text-align:center;font-variant-numeric:tabular-nums}
 
-  .upload-prompt{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px;background:rgba(6,7,8,.72);border-radius:14px}
+  .upload-prompt{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:12px;text-align:center;padding:18px 16px;background:rgba(6,7,8,.82);border-radius:14px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .upload-prompt > *{flex:none}   /* không cho co lại thành 0px khi nội dung dài */
   .upload-prompt[hidden]{display:none}
   .upload-prompt p{font-size:15px;font-weight:600;color:var(--ink)}
   .upload-prompt small{font-size:11.5px;color:var(--mute)}
@@ -1029,6 +1030,7 @@
             <button class="btn-primary" id="startBtn" type="button"><span class="bdot"></span><span id="startLabel">Bắt đầu hành trình</span></button>
             <button class="btn-ghost" id="simBtn" type="button">▶ Mô phỏng lộ trình</button>
             <button class="btn-ghost" id="dlTileBtn" type="button" hidden>⬇ Tải bản đồ offline</button>
+            <button class="btn-ghost" id="testGVBtn2" type="button" hidden>🧪 Nạp tuyến test: nhà → 187 Giảng Võ</button>
             <div class="tile-prog" id="tileProg"></div>
             <div class="gps-status" id="gpsStatus"></div>
             <div class="rec-panel" id="recPanel" hidden>
@@ -2025,6 +2027,9 @@
     const c = cur();
     const empty = c.custom && !(c.track && c.track.length >= 2) && !c.khuVuc;
     document.getElementById('uploadPrompt').hidden = !empty;
+    /* nút nạp tuyến test LUÔN thấy khi ở cung "Tự đi" (không bị khung "Bạn định đi đâu?" che/cắt) */
+    const t2 = document.getElementById('testGVBtn2');
+    if (t2) t2.hidden = !(c.custom && !recording);
   }
   function updateRouteHeader(){
     document.getElementById('routeTitle').textContent = cur().ten;
@@ -3341,7 +3346,7 @@
      12,7km) để "ướm" hướng đi; đích = 187 Giảng Võ (OSM Nominatim). */
   const DICH_GV = {lat: 21.02584, lon: 105.82217, ten: '187 Giảng Võ'};
   const ROUTE_GV = [[21.0717,105.90502],[21.07122,105.90475],[21.07075,105.90429],[21.07032,105.90381],[21.06997,105.90348],[21.06968,105.90322],[21.06982,105.90224],[21.06975,105.90192],[21.06931,105.9015],[21.06697,105.89923],[21.06573,105.89804],[21.06474,105.89712],[21.06341,105.89586],[21.06287,105.89534],[21.06274,105.89521],[21.06163,105.89415],[21.06145,105.89397],[21.06073,105.89324],[21.06045,105.89296],[21.05981,105.89232],[21.05952,105.89203],[21.05772,105.89024],[21.0576,105.89014],[21.05742,105.88998],[21.05612,105.88891],[21.05584,105.88867],[21.05568,105.88847],[21.05555,105.88823],[21.05551,105.88807],[21.05543,105.88793],[21.05521,105.88776],[21.05502,105.88774],[21.05467,105.88766],[21.05419,105.88728],[21.05381,105.88699],[21.05251,105.88597],[21.05106,105.8848],[21.05053,105.88437],[21.05005,105.88395],[21.04967,105.88354],[21.04914,105.88281],[21.04829,105.88108],[21.04763,105.87969],[21.047,105.87841],[21.04675,105.87792],[21.04588,105.87614],[21.04539,105.87513],[21.04436,105.87301],[21.0442,105.87271],[21.04392,105.87227],[21.04326,105.87147],[21.04241,105.87064],[21.04174,105.86995],[21.04113,105.8691],[21.04015,105.86667],[21.03966,105.86557],[21.03547,105.85493],[21.03558,105.85472],[21.03559,105.85453],[21.0355,105.85441],[21.03532,105.85438],[21.03515,105.85444],[21.03495,105.85459],[21.0346,105.85493],[21.03271,105.85589],[21.03151,105.85644],[21.03079,105.85678],[21.02949,105.85738],[21.02913,105.85754],[21.02797,105.85812],[21.02695,105.85862],[21.02601,105.85912],[21.02537,105.85925],[21.02508,105.85925],[21.02485,105.85888],[21.02473,105.85826],[21.02458,105.85754],[21.02452,105.85717],[21.02451,105.85704],[21.02444,105.85697],[21.02472,105.85586],[21.02495,105.85501],[21.0254,105.85341],[21.02577,105.85231],[21.02601,105.85147],[21.02637,105.8502],[21.02659,105.84942],[21.02697,105.84805],[21.02708,105.84767],[21.02754,105.84599],[21.02799,105.84436],[21.02818,105.84398],[21.02828,105.84365],[21.02839,105.84337],[21.02882,105.84295],[21.02948,105.8423],[21.02989,105.84189],[21.03037,105.84139],[21.03076,105.84079],[21.03113,105.83884],[21.0312,105.8385],[21.0316,105.83638],[21.03171,105.83584],[21.03182,105.83524],[21.03199,105.8344],[21.03209,105.83379],[21.03223,105.83311],[21.03245,105.83196],[21.03257,105.8313],[21.03273,105.82982],[21.03262,105.82927],[21.03247,105.82921],[21.03237,105.82927],[21.03187,105.8299],[21.03166,105.82984],[21.03138,105.82975],[21.03115,105.82947],[21.03045,105.82855],[21.03011,105.82807],[21.02957,105.82735],[21.02955,105.82724],[21.02943,105.82698],[21.02875,105.82602],[21.02841,105.82551],[21.0278,105.82474],[21.02639,105.82306],[21.02574,105.82227]];
-  document.getElementById('testGVBtn').addEventListener('click', () => {
+  function napTuyenTestGV(){
     daToiDich = false;
     apDungKhuVuc({ten: 'Test GPS — 187 Giảng Võ', gps: {lat: ROUTE_GV[0][0], lon: ROUTE_GV[0][1]}, dich: DICH_GV});
     const c = CUNG.custom;
@@ -3354,7 +3359,9 @@
     if (mapOn && map) syncMapRoute();
     taiGoiTile('custom', {onTien: tileProgMsg});
     setStatus('🎯 Tuyến test đã sẵn sàng: nhà → 187 Giảng Võ. Ra ngoài trời, bấm "Bắt đầu hành trình" → chọn "Sơ đồ 2D": chấm đỏ = bạn, vạch lime = đường nên đi. Lệch >60m sẽ rung + nhắc "dịch trái/phải". Tới đích (<60m) máy rung mừng.');
-  });
+  }
+  document.getElementById('testGVBtn').addEventListener('click', napTuyenTestGV);
+  document.getElementById('testGVBtn2').addEventListener('click', napTuyenTestGV);
 
   /* ---------- SOS khẩn cấp: tọa độ + copy + SMS + số cứu hộ theo cung ---------- */
   const sosOverlay = document.getElementById('sosOverlay');
