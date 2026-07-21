@@ -638,6 +638,9 @@
   .uh-txt small{font-size:10.5px;color:#9BA88F;display:block}
   .uom-hud.uh-lech .uh-txt small{color:#FF9A9A;font-weight:600}
   .uh-pct{font-size:12px;font-weight:800;color:#C9E265;flex:none;font-family:'Space Mono',monospace}
+  /* khi đang ghi có thanh "Sơ đồ 2D / Bản đồ GPS" ở trên → đẩy banner + HUD xuống cho khỏi chồng */
+  .view-swap:not([hidden]) ~ .map-mode .gps-banner{top:48px}
+  .view-swap:not([hidden]) ~ .uom-hud{top:94px}
 
   /* ===== FEED kiểu Instagram: story rail + lưới Explore + xem bài ===== */
   .fd-story{display:flex;gap:13px;overflow-x:auto;padding:10px 2px 12px;-ms-overflow-style:none;scrollbar-width:none}
@@ -995,7 +998,6 @@
                 <div class="row2"><input id="areaLat" placeholder="Vĩ độ" inputmode="decimal"><input id="areaLon" placeholder="Kinh độ" inputmode="decimal"></div>
                 <button class="btn-ghost" id="areaMake" type="button">Tạo lưới khám phá khu mới</button>
               </div>
-              <button class="btn-ghost" id="testGVBtn" type="button">🧪 Tuyến test đô thị: đi tới 187 Giảng Võ</button>
               <small>Sau đó bấm "Bắt đầu hành trình" để ghi GPS lên nền offline</small>
             </div>
             <div class="map-mode" id="mapMode" hidden>
@@ -1779,7 +1781,15 @@
     runs.forEach(r => {
       if (r.pts.length < 2) return;
       const proj = r.pts.map(p => project(p.x, p.z, p.h + HOFF));
-      el('path', {d:'M' + proj.map(p => p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L'),
+      const dd = 'M' + proj.map(p => p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L');
+      /* tuyến ĐANG DẪN ĐƯỜNG (có đích) → vạch LIME nét liền, thấy rõ để bám;
+         tuyến trưng bày giữ nét chấm trắng như cũ */
+      if (!r.ngam && cur().dich){
+        el('path', {d:dd, stroke:'#C9E265', 'stroke-width':4.5, fill:'none', 'stroke-linecap':'round', 'stroke-linejoin':'round', opacity:.28, filter:'url(#glow)'}, gRoute);
+        el('path', {d:dd, stroke:'#C9E265', 'stroke-width':2.4, fill:'none', 'stroke-linecap':'round', 'stroke-linejoin':'round', opacity:.95}, gRoute);
+        return;
+      }
+      el('path', {d:dd,
         class: (!r.ngam && !reduced) ? 'route-dash' : '',
         stroke: r.ngam ? '#8FD0E8' : '#F2F4F2',
         'stroke-width': r.ngam ? 2 : 2.1, fill:'none', 'stroke-linecap':'round',
@@ -2349,7 +2359,7 @@
     if (!CUNG[id] || (id === cungId && !force)) return;
     const doiCung = id !== cungId;
     if (doiCung){ stopSim(); stopJourney(true); }
-    const apply = () => { cungId = id; rot = 0; tien = 0; resetView(); setStatus(''); if (!CUNG[id].custom && journeyMode === 'tao'){ journeyMode = 'mau'; syncJourneyModeUI(); } document.getElementById('addAnhBtn').hidden = (id !== 'chuyenxem'); renderAll(); if (map) clearLiveLayers(); syncView(); const pAct = document.querySelector('.page.active'); if (pAct) capNhatTab(pAct.dataset.page); };
+    const apply = () => { cungId = id; rot = 0; tien = 0; resetView(); setStatus(''); if (!CUNG[id].custom && journeyMode === 'tao'){ journeyMode = 'mau'; syncJourneyModeUI(); } document.getElementById('addAnhBtn').hidden = (id !== 'chuyenxem'); renderAll(); if (map) clearLiveLayers(); if (!recording) capNhatTuyenMau(); syncView(); const pAct = document.querySelector('.page.active'); if (pAct) capNhatTab(pAct.dataset.page); };
     if (!doiCung || reduced || document.hidden){ riseK = 1; apply(); return; }
     animateSwitch(apply);
   }
@@ -2465,7 +2475,12 @@
   function setProgress(f){ tien = clamp(f,0,1); renderProgress(); mapSetProgress(tien); }
   let simRAF = 0, simActive = false;
   function toggleSim(){
-    if (recording) return;
+    /* đang ghi mà chưa có fix GPS nào → dùng nút này để chạy mô phỏng (vệt tím), thay hộp thoại chặn */
+    if (recording){
+      if (!recPts.length && !demoTimer) startDemoFollow();
+      else setStatus('Đang ghi GPS thật — không chạy mô phỏng.');
+      return;
+    }
     if (simActive){ stopSim(); return; }
     if (routeGeo.length < 2){ setStatus('Chưa có lộ trình để mô phỏng.'); return; }
     simActive = true; simBtn.classList.add('active'); simBtn.textContent = '⏸ Dừng mô phỏng';
@@ -2560,12 +2575,13 @@
     lastFixT = 0; gpsLostWarnT = 0; luuBkT = 0;
     giuManHinh();                                  /* giữ màn hình sáng khi ghi (Wake Lock) */
     const c = cur();
-    if (c.custom){
-      /* Tự đi: track mới thay track cũ */
+    if (c.custom && !c.dich){
+      /* Tự đi TỰ DO (không có tuyến mẫu): track mới thay track cũ */
       c.track = []; c.geoTrack = []; c.tuyenThat = true;
       buildRouteGeo(); tien = 0;
     } else {
-      /* Cung núi: GIỮ NGUYÊN núi + tuyến mẫu, chỉ ghi vệt riêng màu cam đè lên */
+      /* Cung núi HOẶC tuyến test có đích: GIỮ NGUYÊN tuyến mẫu để dẫn đường,
+         chỉ vẽ vệt GPS đỏ của bạn đè lên (KHÔNG xóa geoTrack — từng làm mất line) */
       c.vetRieng = null; tien = 0;
     }
     renderScene();
@@ -2582,8 +2598,10 @@
     capNhatTuyenMau();               /* dựng tuyến mẫu + mốc + chiều dài để ướm ngay từ điểm đầu */
     const vs = document.getElementById('viewSwap');
     if (samMode){
-      showMap(false); zoom = 1.55; applyView();
-      vs.hidden = false; setSwap('scene');
+      vs.hidden = false;
+      /* tuyến test đô thị → mở thẳng BẢN ĐỒ PHỐ (dễ đi theo); cung núi → Sơ đồ 2D */
+      if (c.dich){ setSwap('gps'); }
+      else { zoom = 1.55; applyView(); setSwap('scene'); }
     } else {
       showMap(true); fitMapFull();
       vs.hidden = true;
@@ -2597,20 +2615,19 @@
         if (mapOn) setBanner('Đang chờ tín hiệu GPS…', 'wait');
         return;
       }
-      setStatus('GPS chưa có tín hiệu — đứng nơi thoáng và chờ thêm.');
-      /* demo chỉ chạy khi NGƯỜI DÙNG xác nhận (không tự bật vị trí giả) */
-      demoArm = setTimeout(() => {
-        if (recording && !recPts.length && confirm('Không có tín hiệu GPS sau 20 giây. Chạy DEMO bám tuyến mẫu (vị trí GIẢ — chỉ để xem thử trên máy tính)?')) startDemoFollow();
-      }, 12000);
+      /* KHÔNG dùng confirm() chặn luồng, KHÔNG tự bật vị trí giả — chỉ nhắc, người dùng tự bấm Mô phỏng */
+      setStatus('⚠ Chưa có tín hiệu GPS — ra chỗ thoáng, kiểm tra quyền vị trí. (Muốn xem thử trên máy tính: bấm "Mô phỏng lộ trình".)');
+      if (mapOn) setBanner('Chưa có tín hiệu GPS — đang chờ…', 'wait');
     }, 8000);
     if (mapOn && map){
-      clearLiveLayers(); clearSavedLayers();
+      clearLiveLayers();
+      /* CÓ tuyến mẫu (cung núi / tuyến test) → GIỮ line để dẫn đường; chỉ xóa khi tự đi tự do */
+      if (guideLL.length >= 2) syncMapRoute(true); else clearSavedLayers();
       mTimeEl.textContent = '00:00'; mPaceEl.textContent = '-:--'; mDistEl.textContent = '0,00';
       const dl = document.getElementById('mDistLbl'); if (dl) dl.textContent = 'Quãng đường km';
       setBanner('Đang chờ tín hiệu GPS…', 'wait');
     }
     startBtn.classList.add('rec'); startLbl.textContent = 'Dừng & lưu';
-    simBtn.disabled = true;
     recBadge.hidden = false; recText.textContent = 'GHI · 00:00'; updateDemoTag(); updateCustomUI();
     setStatus('Đang xin quyền vị trí…');
     recTimer = setInterval(() => updateRecUI(), 1000);
@@ -2624,17 +2641,19 @@
         renderScene();
         if (mapOn) setBanner('GPS yếu ±' + Math.round(accuracy) + 'm — giữ vị trí, chờ tín hiệu tốt hơn', 'wait');
         updateRecUI(accuracy);
+        navUpdate(raw, accuracy);              /* vẫn dẫn hướng (ngưỡng lệch tự nới theo sai số) */
         return;
       }
       gpsYeu = false;
       const truocDo = recPts[recPts.length - 1];
       if (truocDo){
         const dt = Math.max(1, (Date.now() - truocDo.t)/1000);
-        /* bỏ fix nhảy phi lý (>20 m/s ≈ 72 km/h — chắc chắn nhiễu GPS) */
-        if (haversine(truocDo, raw)*1000/dt > 20){ updateRecUI(accuracy); return; }
+        /* bỏ fix nhảy phi lý (>40 m/s ≈ 144 km/h). Vẫn CHẠY dẫn hướng để HUD không đứng hình */
+        if (haversine(truocDo, raw)*1000/dt > 40){ navUpdate(raw, accuracy); updateRecUI(accuracy); return; }
         /* đứng yên (<5 m và <30 s) → tiết kiệm pin, không ghi thêm điểm */
         if (haversine(truocDo, raw) < 0.005 && Date.now() - truocDo.t < 30000){
           renderScene(); mapLive(accuracy); updateRecUI(accuracy); capNhatRecPanel(pos);
+          navUpdate(raw, accuracy);            /* đứng yên vẫn cập nhật dẫn hướng */
           return;
         }
       }
@@ -2683,16 +2702,16 @@
     if (recWatch != null){ navigator.geolocation.clearWatch(recWatch); recWatch = null; }
     if (recTimer){ clearInterval(recTimer); recTimer = null; }
     startBtn.classList.remove('rec'); startLbl.textContent = 'Bắt đầu hành trình'; recBadge.hidden = true;
-    simBtn.disabled = false;
     recPanel.hidden = true;
     const c = cur();
     if (recPts.length >= 2){
       const kmDi = recDist().toFixed(2).replace('.', ',');
-      if (c.custom){
+      if (c.custom && !c.dich){
         napTrack(cungId, lamMuotEle(recPts).map(p => ({ lat:p.lat, lon:p.lon, ele:p.ele })));
         try{ localStorage.setItem('mt-track', JSON.stringify(recPts)); }catch(err){}
       } else {
-        /* cung núi: lưu vệt riêng, KHÔNG ghi đè tuyến GPX mẫu */
+        /* cung núi HOẶC tuyến test có đích: lưu vệt riêng, KHÔNG ghi đè tuyến mẫu
+           (trước đây ghi đè làm lần đi thứ 2 mất tuyến 12,7km, chỉ còn đoạn vừa đi) */
         c.vetRieng = recPts.slice();
         renderScene();
       }
@@ -2774,7 +2793,41 @@
     map.on('dragstart', () => { followMe = false; });
     document.getElementById('mapZin').addEventListener('click', () => map.zoomIn());
     document.getElementById('mapZout').addEventListener('click', () => map.zoomOut());
+    theoDoiKichThuocMap();
     if (window.MountainTracker) MountainTracker.map = map;   /* expose để debug/tích hợp */
+  }
+  /* Leaflet hay bị "size 0" khi khung bản đồ hiện lúc chưa có layout (đổi trang, đổi chiều cao)
+     → mất tuyến, mất tile. ResizeObserver tự invalidateSize + vẽ lại tuyến mỗi khi khung đổi cỡ. */
+  let roMap = null;
+  function theoDoiKichThuocMap(){
+    if (roMap || !window.ResizeObserver) return;
+    const elMap = document.getElementById('realMap');
+    if (!elMap) return;
+    let raf = 0;
+    roMap = new ResizeObserver(() => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        if (!map || !mapOn) return;
+        const truoc = map.getSize();
+        map.invalidateSize({animate:false});
+        if (!truoc.x || !truoc.y){          /* vừa từ 0px → có kích thước thật: vẽ lại tuyến */
+          syncMapRoute(!recording);
+          if (recPts.length) mapLive();
+        }
+      });
+    });
+    roMap.observe(elMap);
+  }
+  /* vẽ lại bản đồ nhiều nhịp: khung vừa hiện thường chưa có layout, 1 lần rAF là quá sớm
+     → Leaflet giữ size 0 ⇒ MẤT tuyến + mất tile (lỗi người dùng gặp). */
+  function veLaiMap(){
+    [60, 250, 600].forEach(ms => setTimeout(() => {
+      if (!map || !mapOn) return;
+      map.invalidateSize({animate:false});
+      if (guideLL.length >= 2 && !lySaved.length) syncMapRoute(!recording);
+      if (recPts.length) mapLive();
+    }, ms));
   }
 
   /* ============================================================
@@ -2974,7 +3027,7 @@
     if (!map) return;
     clearSavedLayers();
     const c = cur();
-    guideLL = geoRouteOf(c); buildStops(c); buildGuideCum();
+    capNhatTuyenMau(recording);        /* đang ghi thì giữ nguyên tiến độ đã đi */
     const pts = guideLL.map(p => [p.lat, p.lon]);
     const mau = '#C9E265';                            /* tuyến mẫu LUÔN lime — vệt GPS thật màu đỏ vẽ đè để "ướm" */
     const that = (c.geoTrack || []).length >= 2;
@@ -3007,6 +3060,8 @@
   function capNhatDich(fix){
     const c = cur();
     if (!c.dich) return false;
+    /* đang lệch tuyến → nhường banner cho cảnh báo lệch (trước đây ghi đè, user không đọc được) */
+    if (uomTrangThai === 'lech') return true;
     const d = haversine(fix, c.dich);
     if (d < 0.06){
       if (!daToiDich){
@@ -3030,9 +3085,10 @@
     if (!window.L){ setBanner('Không tải được thư viện bản đồ — cần kết nối mạng.', 'err'); return; }
     initMap();
     startLiveWatch();                              /* GPS tự kết nối từ thiết bị, không cần bấm */
+    veLaiMap();                                    /* nhiều nhịp invalidateSize — chống Leaflet "size 0" mất tuyến */
     requestAnimationFrame(() => {
       map.invalidateSize();
-      syncMapRoute();
+      syncMapRoute(!recording);
       if (recording && recPts.length) mapLive();
       else if ((cur().geoTrack || []).length >= 2) setBanner('Tuyến đã lưu — bấm "Bắt đầu hành trình" để ghi mới', 'wait');
       else setBanner('Đang định vị…', 'wait');
@@ -3058,6 +3114,8 @@
       else liveMk.setLatLng(lastFix);
       if (first && (cur().geoTrack || []).length < 2) map.setView(lastFix, Math.max(map.getZoom(), 16));
       if (!capNhatDich({lat: lastFix[0], lon: lastFix[1]})) setBanner('Đã thu được tín hiệu GPS · ±' + Math.round(pos.coords.accuracy) + ' m');
+      /* dẫn hướng chạy NGAY khi mở tuyến, chưa cần bấm "Bắt đầu hành trình" */
+      if (guideLL.length >= 2) navUpdate({lat: lastFix[0], lon: lastFix[1]}, pos.coords.accuracy);
     }, err => {
       if (!recording) setBanner('Không lấy được GPS: ' + err.message + ' — kiểm tra quyền vị trí.', 'err');
     }, {enableHighAccuracy:true, maximumAge:2000, timeout:15000});
@@ -3126,17 +3184,32 @@
     if (!c.gps || !(c.gps.lat || c.gps.lon)) return [];
     return buildGeoFor(c).geo.map(p => xzToGps(c, p.x, p.z));
   }
+  /* sinh mốc RẼ tự động từ tuyến mẫu (đổi hướng > 35°) — để HUD nói được "Rẽ trái sau 120 m".
+     Trước đây cung custom/tuyến test không có mốc nào ⇒ HUD không hề chỉ đường. */
+  function diemReTuDong(){
+    const out = [];
+    for (let i = 1; i < guideLL.length - 1; i++){
+      const b1 = bearing(guideLL[i-1], guideLL[i]), b2 = bearing(guideLL[i], guideLL[i+1]);
+      const d = ((b2 - b1 + 540) % 360) - 180;          /* >0 = rẽ phải, <0 = rẽ trái */
+      if (Math.abs(d) < 35) continue;
+      if (out.length && guideCum[i] - out[out.length-1].cum < 60) continue;   /* gộp cua liền nhau */
+      out.push({ll: guideLL[i], idx: i, cum: guideCum[i], ten: (d > 0 ? 'Rẽ phải' : 'Rẽ trái')});
+    }
+    out.push({ll: guideLL[guideLL.length-1], idx: guideLL.length-1, cum: guideTotal, ten: 'Đích'});
+    return out;
+  }
   function buildStops(c){
     guideStops = [];
-    if (c.custom || guideLL.length < 2) return;
-    (c.trail || []).forEach(id => {
+    if (guideLL.length < 2) return;
+    if (!c.custom) (c.trail || []).forEach(id => {
       const p = (c.pins || []).find(pp => pp.id === id); if (!p) return;
       const ll = xzToGps(c, p.x, p.z);
       let best = 1e9, bi = 0;
       guideLL.forEach((g,i) => { const d = haversine(ll, g); if (d < best){ best = d; bi = i; } });
-      guideStops.push({ll, idx:bi, ten:p.tt || p.id});
+      guideStops.push({ll, idx:bi, cum: guideCum[bi], ten:p.tt || p.id});
     });
     guideStops.sort((a,b) => a.idx - b.idx);
+    if (!guideStops.length) guideStops = diemReTuDong();   /* tuyến test/custom: dùng mốc rẽ tự sinh */
   }
   function bearing(a, b){
     const p1 = a.lat*Math.PI/180, p2 = b.lat*Math.PI/180, dl = (b.lon-a.lon)*Math.PI/180;
@@ -3166,10 +3239,11 @@
   }
   /* dựng tuyến mẫu + mốc + chiều dài lũy kế — gọi khi vào chế độ ghi (cả Sơ đồ 2D lẫn Bản đồ) */
   let uomFirst = true;
-  function capNhatTuyenMau(){
+  /* giuTienDo=true → chỉ dựng lại tuyến, KHÔNG reset tiến độ (dùng khi vẽ lại map giữa lúc đang đi) */
+  function capNhatTuyenMau(giuTienDo){
     const c = cur();
-    guideLL = geoRouteOf(c); buildStops(c); buildGuideCum();
-    navIdx = 0; uomCum = 0; uomTrangThai = 'dung'; uomLechCount = 0; uomDungCount = 0; uomFirst = true;
+    guideLL = geoRouteOf(c); buildGuideCum(); buildStops(c);   /* cum TRƯỚC stops (stops cần guideCum) */
+    if (!giuTienDo){ navIdx = 0; uomCum = 0; uomTrangThai = 'dung'; uomLechCount = 0; uomDungCount = 0; uomFirst = true; }
   }
   const toMet = (P, ref) => { const k = Math.cos(ref.lat*Math.PI/180)*111320; return [(P.lon-ref.lon)*k, (P.lat-ref.lat)*110574]; };
   /* chiếu P lên đoạn A→B: perp(m) = cự ly vuông góc; cross>0 = P lệch TRÁI theo chiều đi */
@@ -3197,14 +3271,19 @@
       if (!best) for (let i = 0; i < guideLL.length-1; i++) quet(i);   /* ra ngoài cửa sổ → quét lại toàn tuyến */
       if (best.cum > uomCum) uomCum = best.cum;                        /* chỉ tiến, không lùi (đơn điệu) */
     }
-    const nx = guideStops.find(w => w.idx > best.i + 1);
+    /* mốc kế tiếp + khoảng cách tính DỌC TUYẾN (không phải đường chim bay) */
+    const cumCua = w => (w.cum != null ? w.cum : guideCum[w.idx] || 0);
+    const nx = guideStops.find(w => cumCua(w) > uomCum + 15);
     return {
       perp: best.perp, ben: best.perp < 12 ? 'giua' : (best.cross > 0 ? 'trai' : 'phai'),
       bearingGuide: bearing(guideLL[best.i], guideLL[best.i+1]),
       progress: guideTotal > 0 ? clamp(uomCum/guideTotal, 0, 1) : 0,
-      nextStop: nx || null, distNext: haversine(fix, nx ? nx.ll : guideLL[guideLL.length-1])
+      nextStop: nx || null,
+      distNext: nx ? Math.max(0, cumCua(nx) - uomCum) : Math.max(0, guideTotal - uomCum),
+      conLai: Math.max(0, guideTotal - uomCum)          /* mét còn lại theo tuyến */
     };
   }
+  const fmtM = m => m < 1000 ? Math.round(m/10)*10 + ' m' : (m/1000).toFixed(1).replace('.', ',') + ' km';
   const uomHudEl = document.getElementById('uomHud');
   function navUpdate(fix, accuracy){
     if (guideLL.length < 2){ if (uomHudEl) uomHudEl.hidden = true; return; }
@@ -3231,8 +3310,10 @@
     if (!uomHudEl) return;
     uomHudEl.hidden = false;
     uomHudEl.className = 'uom-hud uh-' + uomTrangThai;
-    /* mũi tên chỉ HƯỚNG TUYẾN cần đi (tương đối hướng đang đi); trên Bản đồ cộng mapRot */
-    document.getElementById('uhArrow').style.transform = 'rotate(' + (r.bearingGuide - lastB + (mapOn ? mapRot : 0)).toFixed(0) + 'deg)';
+    /* mũi tên chỉ HƯỚNG TUYẾN cần đi, TƯƠNG ĐỐI hướng đang đi.
+       KHÔNG cộng mapRot: HUD nằm ngoài #realMap nên không bị xoay theo bản đồ
+       (mapRot = -lastB, cộng vào sẽ thành bearingGuide-2·lastB → mũi tên chỉ sai). */
+    document.getElementById('uhArrow').style.transform = 'rotate(' + (r.bearingGuide - lastB).toFixed(0) + 'deg)';
     const tt = document.getElementById('uhTT'), ct = document.getElementById('uhCT');
     if (uomTrangThai === 'lech'){
       if (r.perp < 30){ tt.textContent = 'Đang về tuyến…'; ct.textContent = 'Giữ hướng này'; }
@@ -3241,8 +3322,11 @@
         ct.textContent = (r.ben === 'trai' ? '→ DỊCH PHẢI' : '← DỊCH TRÁI') + ' để về tuyến';
       }
     } else {
-      tt.textContent = uomTrangThai === 'chuy' ? 'Hơi lệch — chú ý hướng' : '✓ Đang bám đúng tuyến';
-      ct.textContent = (r.nextStop ? r.nextStop.ten + ' · ' + fmtKm(r.distNext) : 'Còn ' + fmtKm(r.distNext) + ' tới đích');
+      const nx = r.nextStop;
+      /* sắp tới chỗ rẽ (<400m) → hiện CHỈ DẪN RẼ như app chỉ đường; xa thì báo trạng thái */
+      if (nx && nx.ten !== 'Đích' && r.distNext < 400) tt.textContent = nx.ten + ' sau ' + fmtM(r.distNext);
+      else tt.textContent = uomTrangThai === 'chuy' ? 'Hơi lệch — chú ý hướng' : '✓ Đang bám đúng tuyến';
+      ct.textContent = 'Còn ' + fmtM(r.conLai) + ' tới đích' + (nx && nx.ten !== 'Đích' && r.distNext >= 400 ? ' · ' + nx.ten + ' sau ' + fmtM(r.distNext) : '');
     }
     document.getElementById('uhPct').textContent = Math.round(r.progress*100) + '%';
   }
@@ -3283,7 +3367,7 @@
   function setSwap(mode){
     document.querySelectorAll('#viewSwap button').forEach(b => b.classList.toggle('on', b.dataset.v === mode));
     if (mode === 'gps'){
-      showMap(true); fitMapFull(); syncMapRoute(true);
+      showMap(true); fitMapFull(); syncMapRoute(true); veLaiMap();
       if (recPts.length){ mapLive(); }
     } else {
       showMap(false); zoom = Math.max(zoom, 1.4); applyView();
@@ -3356,11 +3440,11 @@
     c.viTri = 'Tuyến test · nhà (Ngô Gia Tự) → 187 Giảng Võ · 12,7 km';
     chonCung('custom', true);
     moTrang('route');
+    capNhatTuyenMau();                 /* dựng tuyến + mốc rẽ ngay, không phụ thuộc đang ở bản đồ hay sơ đồ */
     if (mapOn && map) syncMapRoute();
     taiGoiTile('custom', {onTien: tileProgMsg});
     setStatus('🎯 Tuyến test đã sẵn sàng: nhà → 187 Giảng Võ. Ra ngoài trời, bấm "Bắt đầu hành trình" → chọn "Sơ đồ 2D": chấm đỏ = bạn, vạch lime = đường nên đi. Lệch >60m sẽ rung + nhắc "dịch trái/phải". Tới đích (<60m) máy rung mừng.');
   }
-  document.getElementById('testGVBtn').addEventListener('click', napTuyenTestGV);
   document.getElementById('testGVBtn2').addEventListener('click', napTuyenTestGV);
 
   /* ---------- SOS khẩn cấp: tọa độ + copy + SMS + số cứu hộ theo cung ---------- */
